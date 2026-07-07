@@ -215,7 +215,6 @@
         <div class="status-bar" id="lobby-wait-count" style="margin-top:8px; font-size:0.85rem;">現在 0 人が待機中</div>
         <div id="lobby-wait-list" style="display:flex; flex-wrap:wrap; gap:5px; justify-content:center; margin-top:4px;"></div>
         <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;" id="lobby-game-buttons">
-            <!-- ゲーム開始用のロビーボタンは各スクリプトで動的に定義可能ですが、互換性のために維持 -->
             <button class="btn btn-success" id="btn-start-uno" onclick="GameRegistry.uno.hostGame()">UNO を開始</button>
             <button class="btn btn-purple" id="btn-start-draw" onclick="GameRegistry.shiritori.hostGame()">お絵描きしりとり を開始</button>
             <button class="btn btn-danger" onclick="leaveRoom()">🚪 部屋から退出する</button>
@@ -263,11 +262,7 @@
     </div>
 </div>
 
-<!-- ========================================== -->
-<!-- 共通管理システム用 JavaScript                -->
-<!-- ========================================== -->
 <script>
-    // 【新規拡張用のゲームレジストリ】今後新しいゲームをgames/フォルダに増やした際は、ここに追記するだけで反映されます。
     const GameRegistry = {};
 
     let peer = null;
@@ -279,7 +274,6 @@
     let connections = {}; 
     let sortedPlayers = []; 
     
-    // 既存のすべての状態を完全保持
     let gameState = {
         isStarted: false,
         gameType: 'uno', 
@@ -334,7 +328,6 @@
     window.onload = () => {
         myAccountId = 'PLAYER-' + Math.random().toString(36).substring(2, 11).toUpperCase();
         
-        // 分割したゲームファイルのHTMLパーツを初期生成
         let htmlBuffer = "";
         Object.keys(GameRegistry).forEach(key => {
             if(GameRegistry[key].template) {
@@ -343,7 +336,6 @@
         });
         document.getElementById('dynamic-game-injection-container').innerHTML = htmlBuffer;
 
-        // 全ゲームの個別初期化関数を呼び出し
         Object.keys(GameRegistry).forEach(key => {
             if(typeof GameRegistry[key].init === "function") GameRegistry[key].init();
         });
@@ -403,7 +395,6 @@
                 gameState = data.state;
                 syncGameUI();
             }
-            // リアルタイム通信データを登録されている各ゲームモジュールにリダイレクトしてそのまま処理
             Object.keys(GameRegistry).forEach(key => {
                 if(typeof GameRegistry[key].handleData === "function") {
                     GameRegistry[key].handleData(data);
@@ -511,7 +502,6 @@
         document.getElementById('game-workspace').classList.add('active');
         rebuildPlayerList();
 
-        // 稼働しているターゲットゲームの同期描画をキック
         const targetGame = GameRegistry[gameState.gameType];
         if (targetGame && typeof targetGame.syncUI === "function") {
             targetGame.syncUI();
@@ -519,7 +509,6 @@
     }
 </script>
 
-<!-- 各ゲームファイルを外部スクリプトとしてフォルダ管理下から読み込む -->
 <script src="games/uno.js"></script>
 <script src="games/shiritori.js"></script>
 </body>

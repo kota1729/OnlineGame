@@ -1,6 +1,5 @@
 // GameRegistryにUNOの機能と表示パーツをすべて登録
 GameRegistry.uno = {
-    // 既存のHTMLテンプレート
     template: `
         <div class="uno-emergency-banner" id="uno-emergency-alert-bar">⚠️ 警告: 誰かがUNOになりました！</div>
         <div class="status-bar" id="game-info" style="border-left-color: #ffaa00; font-size: 0.8rem;">進行情報</div>
@@ -27,6 +26,7 @@ GameRegistry.uno = {
                     <div style="text-align:center; display: flex; flex-direction: column; align-items: center;">
                         <div style="font-size:0.65rem; margin-bottom:2px; color:#aaa;">場のカード</div>
                         <div class="uno-card" id="uno-center-card">-</div>
+                        <!-- 前のテキスト表示形式に戻しました -->
                         <div class="uno-history-text" id="uno-card-history" style="display:none;"></div>
                     </div>
                 </div>
@@ -65,7 +65,6 @@ GameRegistry.uno = {
     },
 
     handleData: function(data) {
-        // UNO特有のデータ受信処理（現状SYNC_GAME以外にリアルタイム系は無いため空のままで既存互換維持）
     },
 
     shuffleArrayEqually: function(array) {
@@ -184,13 +183,22 @@ GameRegistry.uno = {
     hasPlayableCard: function(cards) {
         if (!gameState.discardPile || gameState.discardPile.length === 0) return false;
         const topCard = gameState.discardPile[gameState.discardPile.length - 1];
+        
+        // 重ねがけ（スタック）中である場合の出せるカード制限
+        if (gameState.pendingDrawCount > 0) {
+            if (gameState.pendingDrawType === 'Draw2') {
+                return cards.some(card => card.value === 'Draw2');
+            } else if (gameState.pendingDrawType === 'WildDraw4') {
+                return cards.some(card => card.value === 'WildDraw4');
+            }
+        }
+        
         return cards.some(card => card.color === 'wild' || card.color === gameState.currentSuit || card.value === topCard.value);
     },
 
     isIllegalLastActionCard: function(cards) {
         if (cards.length !== 1) return false;
         const card = cards[0];
-        // 元の条件式を完全維持
         if (card.value === 'Skip' || card.value === 'Reverse' || card.value === 'Draw2' || card.value === 'WildDraw4' || card.value === 'Wild') {
             const topCard = gameState.discardPile[gameState.discardPile.length - 1];
             return (card.color === 'wild' || card.color === gameState.currentSuit || card.value === topCard.value);
@@ -200,8 +208,16 @@ GameRegistry.uno = {
 
     validateSelectionValidity: function(myCards) {
         if(this.selectedIndices.length === 0) return false;
-        const topCard = gameState.discardPile[gameState.discardPile.length - 1];
         const bottomCard = myCards[this.selectedIndices[0]];
+        
+        // スタック積立中は、ドロー2ならドロー2、ドロー4ならドロー4しか選べない
+        if (gameState.pendingDrawCount > 0) {
+            if (gameState.pendingDrawType === 'Draw2' && bottomCard.value !== 'Draw2') return false;
+            if (gameState.pendingDrawType === 'WildDraw4' && bottomCard.value !== 'WildDraw4') return false;
+            return true;
+        }
+        
+        const topCard = gameState.discardPile[gameState.discardPile.length - 1];
         return (bottomCard.color === 'wild' || bottomCard.color === gameState.currentSuit || bottomCard.value === topCard.value);
     },
 
@@ -215,9 +231,31 @@ GameRegistry.uno = {
     drawCard: function() {
         const activePlayer = getActivePlayer();
         if(!activePlayer || activePlayer.accId !== myAccountId) return;
-        if (gameState.hasDrawnThisTurn) { customAlert("1ターンにつき一枚しか引けません。"); return; }
-
+        
         const myCards = gameState.hands[myAccountId] || [];
+        
+        // 重ねがけ中の積立がある場合は引く枚数が異なる
+        if (gameState.pendingDrawCount > 0) {
+            if (this.hasPlayableCard(myCards)) {
+                customAlert("重ねがけして出せるカードがあるため、山札を引くことはできません。手札から出してください。");
+                return;
+            }
+            // 重ねがけを回避してカードを累積分引き、ターンを強制移動
+            for (let i = 0; i < gameState.pendingDrawCount; i++) {
+                this.reshuffleDeckFromDiscard();
+                if (gameState.deck.length > 0) myCards.push(gameState.deck.pop());
+            }
+            gameState.lastPlayedComboText = `${myName}さんが累積で${gameState.pendingDrawCount}枚引きました`;
+            gameState.pendingDrawCount = 0;
+            gameState.pendingDrawType = null;
+            gameState.turnIndex = (gameState.turnIndex + gameState.direction + gameState.roster.length) % gameState.roster.length;
+            gameState.hasDrawnThisTurn = false; this.selectedIndices = [];
+            broadcast({ type: 'SYNC_GAME', state: gameState });
+            syncGameUI();
+            return;
+        }
+
+        if (gameState.hasDrawnThisTurn) { customAlert("1ターンにつき一枚しか引けません。"); return; }
         if (this.hasPlayableCard(myCards) && !this.isIllegalLastActionCard(myCards)) { 
             customAlert("出せるカードがあるため、山札を引くことはできません。手札から出してください。"); 
             return; 
@@ -308,7 +346,6 @@ GameRegistry.uno = {
     },
 
     passTurn: function() {
-        // パス処理の既存ロジック
         const activePlayer = getActivePlayer();
         if(!activePlayer || activePlayer.accId !== myAccountId) return;
         gameState.turnIndex = (gameState.turnIndex + gameState.direction + gameState.roster.length) % gameState.roster.length;
@@ -318,24 +355,25 @@ GameRegistry.uno = {
     },
 
     playSelectedCards: function() {
-        // カード提出時の既存ロジック
         const activePlayer = getActivePlayer();
         if(!activePlayer || activePlayer.accId !== myAccountId) return;
         const myCards = gameState.hands[myAccountId] || [];
         if(this.selectedIndices.length === 0) return;
 
         let putCards = [];
-        this.selectedIndices.sort((a,b) => b-a).forEach(idx => {
-            putCards.push(myCards.splice(idx, 1)[0]);
+        // 選んだ順番通りに取り出して場に出すように修正 (逆順インデックスで手札から破綻なく削除して整列)
+        const sortedSelectedIndices = [...this.selectedIndices].sort((a,b) => b-a);
+        sortedSelectedIndices.forEach(idx => {
+            const originalSelectionOrder = this.selectedIndices.indexOf(idx);
+            putCards[originalSelectionOrder] = myCards.splice(idx, 1)[0];
         });
         this.selectedIndices = [];
 
-        putCards.reverse();
         const finalCard = putCards[putCards.length - 1];
 
         putCards.forEach(c => gameState.discardPile.push(c));
         gameState.currentSuit = finalCard.color;
-        gameState.lastPlayedComboText = `${myName}さんが [${this.getJapaneseColor(finalCard.color)}の${finalCard.dispName}] を${putCards.length}枚出しました`;
+        gameState.lastPlayedComboText = getJapaneseColor(firstCard.color) + firstCard.dispName;
 
         if (myCards.length === 0) {
             gameState.isEnded = true;
@@ -350,16 +388,17 @@ GameRegistry.uno = {
             gameState.unoCalled[myAccountId] = false;
         }
 
-        // 記号カードのエフェクト既存ルール
         let nextSkip = false;
         if(finalCard.value === 'Skip') nextSkip = true;
         if(finalCard.value === 'Reverse') gameState.direction *= -1;
+        
+        // 重ねがけ（スタック）対応の加算ロジック
         if(finalCard.value === 'Draw2') {
             gameState.pendingDrawCount += (2 * putCards.length);
             gameState.pendingDrawType = 'Draw2';
         }
         if(finalCard.value === 'WildDraw4') {
-            gameState.pendingDrawCount += 4;
+            gameState.pendingDrawCount += (4 * putCards.length);
             gameState.pendingDrawType = 'WildDraw4';
         }
 
@@ -389,37 +428,13 @@ GameRegistry.uno = {
         if (nextSkip) step *= 2;
         gameState.turnIndex = (gameState.turnIndex + step + gameState.roster.length) % gameState.roster.length;
         
-        // 積み立てドロー判定の既存処理
-        if (gameState.pendingDrawCount > 0) {
-            const nextPlayer = getActivePlayer();
-            const nextHand = gameState.hands[nextPlayer.accId] || [];
-            
-            let canStack = false;
-            if (gameState.pendingDrawType === 'Draw2') {
-                canStack = nextHand.some(c => c.value === 'Draw2');
-            } else if (gameState.pendingDrawType === 'WildDraw4') {
-                canStack = nextHand.some(c => c.value === 'WildDraw4');
-            }
-
-            if (!canStack) {
-                for (let i = 0; i < gameState.pendingDrawCount; i++) {
-                    this.reshuffleDeckFromDiscard();
-                    if (gameState.deck.length > 0) nextHand.push(gameState.deck.pop());
-                }
-                gameState.lastPlayedComboText += ` / ${nextPlayer.name}さんが累積で${gameState.pendingDrawCount}枚引きました`;
-                gameState.pendingDrawCount = 0;
-                gameState.pendingDrawType = null;
-                gameState.turnIndex = (gameState.turnIndex + gameState.direction + gameState.roster.length) % gameState.roster.length;
-            }
-        }
-
+        // 次のプレイヤーに回った時点で即座にドロー自動消化するのではなく、ターン内で重ねがけを判定するため、ここの自動引かせ処理を削除・または条件を限定化しました。
         gameState.hasDrawnThisTurn = false;
         broadcast({ type: 'SYNC_GAME', state: gameState });
         syncGameUI();
     },
 
     syncUI: function() {
-        // UI表示切り替え
         document.getElementById('game-title-label').textContent = "UNO プレイフィールド";
         document.getElementById('uno-board-area').classList.add('active');
         const drawBoard = document.getElementById('draw-board-area');
@@ -497,7 +512,11 @@ GameRegistry.uno = {
         if (!amInRoster) {
             baseStatus = `⏱️ ${activePlayer ? activePlayer.name : '相手'}のターンです...(観戦中)`;
         } else if (isMyTurn) {
-            baseStatus = gameState.hasDrawnThisTurn ? "山札から引きました。出せるカードがあれば出してください。出せなければパスしてください。" : "⚡ あなたの番です。出せるカードがあれば出してください（同じ数字・記号なら複数枚選んで出せます）。出せなければ山札から引いてください。";
+            if (gameState.pendingDrawCount > 0) {
+                baseStatus = `🔥 重ねがけ攻撃が来ています！同じ種類のドローカードを出して重ねがけするか、山札をタップして [${gameState.pendingDrawCount}枚] 引き受けてください！`;
+            } else {
+                baseStatus = gameState.hasDrawnThisTurn ? "山札から引きました。出せるカードがあれば出してください。出せなければパスしてください。" : "⚡ あなたの番です。出せるカードがあれば出してください（同じ数字・記号なら複数枚選んで出せます）。出せなければ山札から引いてください。";
+            }
         } else {
             baseStatus = `⏱️ ${activePlayer ? activePlayer.name : '相手'}のターンです...`;
         }
@@ -515,12 +534,13 @@ GameRegistry.uno = {
         }
 
         const myCardsForButtons = gameState.hands[myAccountId] || [];
-        document.getElementById('btn-uno-pass').disabled = (!isMyTurn || !gameState.hasDrawnThisTurn || this.hasPlayableCard(myCardsForButtons));
+        document.getElementById('btn-uno-pass').disabled = (!isMyTurn || !gameState.hasDrawnThisTurn || this.hasPlayableCard(myCardsForButtons) || gameState.pendingDrawCount > 0);
         document.getElementById('btn-uno-play').disabled = (this.selectedIndices.length === 0);
 
         const deckEl = document.getElementById('uno-deck');
         if (deckEl) {
-            const deckDisabled = !isMyTurn || gameState.hasDrawnThisTurn || (this.hasPlayableCard(myCardsForButtons) && !this.isIllegalLastActionCard(myCardsForButtons));
+            // 重ねがけ中の場合は、出せるカードを持っていても山札を引いて受け入れることができるように制限を緩和
+            const deckDisabled = !isMyTurn || (gameState.hasDrawnThisTurn && gameState.pendingDrawCount === 0) || (gameState.pendingDrawCount === 0 && this.hasPlayableCard(myCardsForButtons) && !this.isIllegalLastActionCard(myCardsForButtons));
             deckEl.classList.toggle('disabled', deckDisabled);
         }
     }
