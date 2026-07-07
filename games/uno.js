@@ -311,10 +311,29 @@ GameRegistry.uno = {
         // パス処理の既存ロジック
         const activePlayer = getActivePlayer();
         if(!activePlayer || activePlayer.accId !== myAccountId) return;
-        gameState.turnIndex = (gameState.turnIndex + gameState.direction + gameState.roster.length) % gameState.roster.length;
-        gameState.hasDrawnThisTurn = false; this.selectedIndices = [];
-        broadcast({ type: 'SYNC_GAME', state: gameState });
-        syncGameUI();
+        const myCards = gameState.hands[myAccountId] || [];
+        if (!gameState.hasDrawnThisTurn) { customAlert("パスする前に、まず山札から1枚引いてください。"); return; }
+        if (this.hasPlayableCard(myCards) && !this.isIllegalLastActionCard(myCards)) {
+            customAlert("出せるカードがあるため、パスすることはできません。");
+            return;
+        }
+
+        // 重ねがけ（ドロー2/ワイルド4）に対抗せずパスした場合、累積分をまとめて引き受ける
+        if (gameState.pendingDrawCount > 0) {
+            const multiplier = gameState.pendingDrawType === 'WildDraw4' ? 4 : 2;
+            const totalPenaltyCards = gameState.pendingDrawCount * multiplier;
+            for (let i = 0; i < totalPenaltyCards; i++) {
+                this.reshuffleDeckFromDiscard();
+                if (gameState.deck.length > 0) myCards.push(gameState.deck.pop());
+            }
+            customAlert(`重ねがけに対抗せずパスしたため、合計 ${totalPenaltyCards} 枚のペナルティを引き受けました。`);
+            gameState.pendingDrawCount = 0; gameState.pendingDrawType = null;
+        }
+        this.advanceTurn();
+    },
+
+    isActionCard: function(value) {
+        return ['Skip', 'Reverse', 'Draw2', 'Wild', 'WildDraw4'].includes(value);
     },
 
     playSelectedCards: function() {
@@ -323,99 +342,130 @@ GameRegistry.uno = {
         if(!activePlayer || activePlayer.accId !== myAccountId) return;
         const myCards = gameState.hands[myAccountId] || [];
         if(this.selectedIndices.length === 0) return;
+        if (!this.validateSelectionValidity(myCards)) {
+            customAlert("一番下に出すカードは、場のカードと同じ色か同じ数字である必要があります。");
+            return;
+        }
 
-        let putCards = [];
-        this.selectedIndices.sort((a,b) => b-a).forEach(idx => {
-            putCards.push(myCards.splice(idx, 1)[0]);
+        if (this.selectedIndices.length === myCards.length) {
+            const hasActionCard = this.selectedIndices.some(idx => this.isActionCard(myCards[idx].value));
+            if (hasActionCard) {
+                customAlert("記号カード(スキップ/リバース/ドロー2/ワイルド/ワイルド4)を最後の上がり札にすることはできません！"); return;
+            }
+        }
+
+        // 選択した順番をそのまま維持する（1番目に選んだカードを一番下、最後に選んだカードを一番上にして出す）
+        const orderedCards = this.selectedIndices.map(idx => myCards[idx]);
+        let comboText = "";
+        orderedCards.forEach((c, idx) => {
+            comboText += `${this.getJapaneseColor(c.color)}${c.dispName}`;
+            if (idx < orderedCards.length - 1) comboText += " → ";
         });
+        gameState.lastPlayedComboText = comboText;
+
+        // 手札からの削除は、選択順を保ったままインデックスがずれないよう降順で行う
+        const removalOrder = [...this.selectedIndices].sort((a, b) => b - a);
+        removalOrder.forEach(idx => myCards.splice(idx, 1));
+
+        let lastPlayedCard = null;
+        orderedCards.forEach(card => { gameState.discardPile.push(card); lastPlayedCard = card; });
+        const playedCount = orderedCards.length;
         this.selectedIndices = [];
 
-        putCards.reverse();
-        const finalCard = putCards[putCards.length - 1];
-
-        putCards.forEach(c => gameState.discardPile.push(c));
-        gameState.currentSuit = finalCard.color;
-        gameState.lastPlayedComboText = `${myName}さんが [${this.getJapaneseColor(finalCard.color)}の${finalCard.dispName}] を${putCards.length}枚出しました`;
-
         if (myCards.length === 0) {
+            this.clearTimer();
             gameState.isEnded = true;
             gameState.winner = myName;
-            gameState.winnerHandText = this.getJapaneseColor(finalCard.color) + finalCard.dispName;
+            gameState.winnerHandText = comboText;
+            gameState.currentSuit = lastPlayedCard.color === 'wild' ? gameState.currentSuit : lastPlayedCard.color;
             broadcast({ type: 'SYNC_GAME', state: gameState });
             syncGameUI();
             return;
         }
 
-        if (myCards.length === 1) {
-            gameState.unoCalled[myAccountId] = false;
+        if (!gameState.unoCalled) gameState.unoCalled = {};
+        gameState.unoCalled[myAccountId] = (myCards.length !== 1);
+
+        // 重ねがけ（ドロー2/ワイルド4）に対応しないカードを出した場合、これまでの累積ペナルティを即座に引き受ける
+        if (gameState.pendingDrawCount > 0) {
+            if ((gameState.pendingDrawType === 'Draw2' && lastPlayedCard.value !== 'Draw2') ||
+                (gameState.pendingDrawType === 'WildDraw4' && lastPlayedCard.value !== 'WildDraw4')) {
+                this.executeImmediateStackFailurePenalty();
+            }
         }
 
-        // 記号カードのエフェクト既存ルール
-        let nextSkip = false;
-        if(finalCard.value === 'Skip') nextSkip = true;
-        if(finalCard.value === 'Reverse') gameState.direction *= -1;
-        if(finalCard.value === 'Draw2') {
-            gameState.pendingDrawCount += (2 * putCards.length);
-            gameState.pendingDrawType = 'Draw2';
-        }
-        if(finalCard.value === 'WildDraw4') {
-            gameState.pendingDrawCount += 4;
-            gameState.pendingDrawType = 'WildDraw4';
-        }
-
-        if (finalCard.color === 'wild') {
+        gameState.currentSuit = lastPlayedCard.color;
+        if (lastPlayedCard.color === 'wild') {
+            if (lastPlayedCard.value === 'WildDraw4') {
+                gameState.pendingDrawCount = (gameState.pendingDrawCount || 0) + playedCount;
+                gameState.pendingDrawType = 'WildDraw4';
+            }
             document.getElementById('uno-color-selector').style.display = 'flex';
             document.getElementById('btn-uno-play').disabled = true;
             document.getElementById('btn-uno-pass').disabled = true;
             return;
         }
+        this.processCardEffect(lastPlayedCard, playedCount);
+    },
 
-        this.proceedTurn(nextSkip);
+    executeImmediateStackFailurePenalty: function() {
+        const myCards = gameState.hands[myAccountId] || [];
+        const multiplier = gameState.pendingDrawType === 'WildDraw4' ? 4 : 2;
+        const totalPenaltyCards = gameState.pendingDrawCount * multiplier;
+        for (let i = 0; i < totalPenaltyCards; i++) {
+            this.reshuffleDeckFromDiscard();
+            if (gameState.deck.length > 0) myCards.push(gameState.deck.pop());
+        }
+        customAlert(`重ねがけを継続しないカードを出したため、これまで累積されていたペナルティ分 (${totalPenaltyCards} 枚) をすべて引き受けました！`);
+        gameState.pendingDrawCount = 0; gameState.pendingDrawType = null;
     },
 
     selectWildColor: function(color) {
         gameState.currentSuit = color;
         document.getElementById('uno-color-selector').style.display = 'none';
-        
-        const topCard = gameState.discardPile[gameState.discardPile.length - 1];
-        let nextSkip = false;
-        if(topCard.value === 'Skip') nextSkip = true;
-
-        this.proceedTurn(nextSkip);
-    },
-
-    proceedTurn: function(nextSkip) {
-        let step = gameState.direction;
-        if (nextSkip) step *= 2;
-        gameState.turnIndex = (gameState.turnIndex + step + gameState.roster.length) % gameState.roster.length;
-        
-        // 積み立てドロー判定の既存処理
-        if (gameState.pendingDrawCount > 0) {
-            const nextPlayer = getActivePlayer();
-            const nextHand = gameState.hands[nextPlayer.accId] || [];
-            
-            let canStack = false;
-            if (gameState.pendingDrawType === 'Draw2') {
-                canStack = nextHand.some(c => c.value === 'Draw2');
-            } else if (gameState.pendingDrawType === 'WildDraw4') {
-                canStack = nextHand.some(c => c.value === 'WildDraw4');
-            }
-
-            if (!canStack) {
-                for (let i = 0; i < gameState.pendingDrawCount; i++) {
-                    this.reshuffleDeckFromDiscard();
-                    if (gameState.deck.length > 0) nextHand.push(gameState.deck.pop());
-                }
-                gameState.lastPlayedComboText += ` / ${nextPlayer.name}さんが累積で${gameState.pendingDrawCount}枚引きました`;
-                gameState.pendingDrawCount = 0;
-                gameState.pendingDrawType = null;
-                gameState.turnIndex = (gameState.turnIndex + gameState.direction + gameState.roster.length) % gameState.roster.length;
-            }
-        }
-
+        gameState.turnIndex = this.getNextPlayerIndex(1);
         gameState.hasDrawnThisTurn = false;
         broadcast({ type: 'SYNC_GAME', state: gameState });
         syncGameUI();
+    },
+
+    processCardEffect: function(card, count) {
+        count = count || 1;
+        if (card.value === 'Skip') {
+            for (let i = 0; i < count; i++) {
+                gameState.turnIndex = this.getNextPlayerIndex(1);
+                gameState.turnIndex = this.getNextPlayerIndex(1);
+            }
+        } else if (card.value === 'Reverse') {
+            if (count % 2 === 1) gameState.direction *= -1;
+            gameState.turnIndex = this.getNextPlayerIndex(1);
+        } else if (card.value === 'Draw2') {
+            gameState.pendingDrawCount = (gameState.pendingDrawCount || 0) + count;
+            gameState.pendingDrawType = 'Draw2';
+            gameState.turnIndex = this.getNextPlayerIndex(1);
+        } else {
+            gameState.turnIndex = this.getNextPlayerIndex(1);
+        }
+        gameState.hasDrawnThisTurn = false;
+        broadcast({ type: 'SYNC_GAME', state: gameState });
+        syncGameUI();
+    },
+
+    advanceTurn: function() {
+        gameState.turnIndex = this.getNextPlayerIndex(1);
+        gameState.hasDrawnThisTurn = false;
+        this.selectedIndices = [];
+        broadcast({ type: 'SYNC_GAME', state: gameState });
+        syncGameUI();
+    },
+
+    getNextPlayerIndex: function(steps) {
+        let idx = gameState.turnIndex;
+        const rosterLen = (typeof getRoster === 'function' ? getRoster().length : gameState.roster.length);
+        for (let i = 0; i < steps; i++) {
+            idx = (idx + gameState.direction * 1 + rosterLen) % rosterLen;
+        }
+        return idx;
     },
 
     syncUI: function() {
