@@ -35,7 +35,6 @@
         .account-persistent-bar strong { color: var(--accent-color); }
 
         .login-grid-wrapper { display: grid; grid-template-columns: 1fr; gap: 15px; margin-bottom: 5px; }
-        @media (min-width: 768px) { .login-grid-wrapper { grid-template-columns: 1fr; } }
 
         .panel { background: var(--panel-color); border-radius: 12px; padding: 12px; border: 1px solid var(--border-color); box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
         .panel-title { font-size: 1rem; color: var(--accent-color); font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; }
@@ -87,7 +86,6 @@
         @media (min-width: 480px) { .uno-card { width: 68px; height: 102px; font-size: 1.2rem; } }
 
         .uno-card::before { content: ""; position: absolute; inset: 7px; border: 2px solid rgba(255,255,255,0.55); border-radius: 50%; transform: rotate(-25deg); pointer-events: none; }
-
         .uno-card .card-center { position: relative; z-index: 1; text-shadow: 1px 1px 2px rgba(0,0,0,0.7); }
         .uno-card .card-center .card-icon { width: 34px; height: 34px; display: block; }
         @media (min-width: 480px) { .uno-card .card-center .card-icon { width: 42px; height: 42px; } }
@@ -183,31 +181,34 @@
         .kick-overlay { position: fixed; inset: 0; background: #0b0d16; z-index: 999999; display: none; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 30px; }
         .kick-box { max-width: 450px; background: var(--panel-color); padding: 30px; border-radius: 16px; border: 2px solid var(--danger-color); box-shadow: 0 0 30px rgba(231,76,60,0.4); }
 
-        /* チンチロ用CSSスタイル */
-        .dice-bowl { width: 100%; max-width: 320px; aspect-ratio: 1/1; background: radial-gradient(circle, #f5f6fa 40%, #dcdde1 100%); border: 12px solid #8c7ae6; border-radius: 50%; margin: 20px auto; position: relative; box-shadow: inset 0 8px 16px rgba(0,0,0,0.2), 0 8px 24px rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; gap: 15px; overflow: hidden; }
-        .dice { width: 45px; height: 45px; background-color: #fff; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.3), inset -2px -2px 4px rgba(0,0,0,0.1); display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); padding: 5px; position: relative; transition: all 0.1s ease; }
-        .dice-dot { background-color: #2f3640; border-radius: 50%; width: 7px; height: 7px; margin: auto; display: none; }
-        .dice.red-one .dice-dot.center-dot { background-color: #e74c3c; width: 13px; height: 13px; }
+        /* チンチロ用スタイリングとサイコロの正しいドット配置 */
+        .dice-container { display: none; justify-content: center; align-items: center; gap: 20px; margin: 20px 0; padding: 20px; background: rgba(0,0,0,0.2); border-radius: 10px; }
+        .dice { width: 60px; height: 60px; background-color: #ffffff; border-radius: 10px; box-shadow: inset 0 0 5px rgba(0,0,0,0.2), 0 4px 8px rgba(0,0,0,0.3); padding: 5px; }
         
-        /* サイコロの目配置ロジック */
-        .dice[data-value="1"] .center-dot { display: block; }
-        .dice[data-value="2"] .top-left, .dice[data-value="2"] .bottom-right { display: block; }
-        .dice[data-value="3"] .top-left, .dice[data-value="3"] .center-dot, .dice[data-value="3"] .bottom-right { display: block; }
-        .dice[data-value="4"] .top-left, .dice[data-value="4"] .top-right, .dice[data-value="4"] .bottom-left, .dice[data-value="4"] .bottom-right { display: block; }
-        .dice[data-value="5"] .top-left, .dice[data-value="5"] .top-right, .dice[data-value="5"] .center-dot, .dice[data-value="5"] .bottom-left, .dice[data-value="5"] .bottom-right { display: block; }
-        .dice[data-value="6"] .top-left, .dice[data-value="6"] .top-right, .dice[data-value="6"] .center-left, .dice[data-value="6"] .center-right, .dice[data-value="6"] .bottom-left, .dice[data-value="6"] .bottom-right { display: block; }
+        /* 3x3のグリッドで一般的なサイコロの点の位置を再現 */
+        .dice-grid { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); width: 100%; height: 100%; justify-items: center; align-items: center; }
+        .dot { width: 10px; height: 10px; background-color: #333; border-radius: 50%; display: none; }
+        
+        /* 1の目は中央かつ赤色で大きく表現 */
+        .dice[data-value="1"] .dot-5 { display: block; background-color: #e74c3c; width: 14px; height: 14px; }
+        
+        /* 2の目は対角の2点 */
+        .dice[data-value="2"] .dot-1, .dice[data-value="2"] .dot-9 { display: block; }
+        
+        /* 3の目は斜め3連 */
+        .dice[data-value="3"] .dot-1, .dice[data-value="3"] .dot-5, .dice[data-value="3"] .dot-9 { display: block; }
+        
+        /* 4の目は四隅 */
+        .dice[data-value="4"] .dot-1, .dice[data-value="4"] .dot-3, .dice[data-value="4"] .dot-7, .dice[data-value="4"] .dot-9 { display: block; }
+        
+        /* 5の目は四隅＋中央 */
+        .dice[data-value="5"] .dot-1, .dice[data-value="5"] .dot-3, .dice[data-value="5"] .dot-5, .dice[data-value="5"] .dot-7, .dice[data-value="5"] .dot-9 { display: block; }
+        
+        /* 6の目は両サイドに3つずつ */
+        .dice[data-value="6"] .dot-1, .dice[data-value="6"] .dot-3, .dice[data-value="6"] .dot-4, .dice[data-value="6"] .dot-6, .dice[data-value="6"] .dot-7, .dice[data-value="6"] .dot-9 { display: block; }
 
-        /* サイコロローリングアニメーション */
-        .dice.rolling { animation: diceRollAnim 0.7s infinite linear; }
-        @keyframes diceRollAnim {
-            0% { transform: translate(var(--rx, 10px), var(--ry, -10px)) rotate(0deg) scale(0.9); }
-            25% { transform: translate(var(--rx2, -15px), var(--ry2, 20px)) rotate(90deg) scale(1.1); }
-            50% { transform: translate(var(--rx3, 20px), var(--ry3, 5px)) rotate(180deg) scale(0.95); }
-            75% { transform: translate(var(--rx4, -5px), var(--ry4, -20px)) rotate(270deg) scale(1.05); }
-            100% { transform: translate(var(--rx, 10px), var(--ry, -10px)) rotate(360deg) scale(0.9); }
-        }
-        .chinchiro-history { background: rgba(0,0,0,0.3); padding: 8px; border-radius: 8px; font-size: 0.8rem; border: 1px solid var(--border-color); max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
-        .chinchiro-history-item { display: flex; justify-content: space-between; padding: 4px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .dice-result-log { background: rgba(0,0,0,0.4); padding: 10px; border-radius: 8px; font-size: 0.85rem; max-height: 150px; overflow-y: auto; text-align: left; border: 1px solid var(--border-color); }
+        .dice-log-item { padding: 4px 0; border-bottom: 1px dashed rgba(255,255,255,0.1); }
     </style>
 </head>
 <body>
@@ -242,7 +243,7 @@
         <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
             <button class="btn btn-success" id="btn-start-uno" onclick="hostUnoGame()">UNO を開始</button>
             <button class="btn btn-purple" id="btn-start-draw" onclick="hostDrawGame()">お絵描きしりとり を開始</button>
-            <button class="btn btn-purple" id="btn-start-chinchiro" onclick="hostChinchiroGame()" style="background:#8c7ae6;">🎲 チンチロ を開始</button>
+            <button class="btn btn-purple" style="background:#d35400;" id="btn-start-chinchiro" onclick="hostChinchiroGame()">チンチロ を開始</button>
             <button class="btn btn-danger" onclick="leaveRoom()">🚪 部屋から退出する</button>
         </div>
     </div>
@@ -365,35 +366,37 @@
                 </div>
             </div>
 
-            <!-- 追加：チンチロ用フィールド -->
             <div class="chinchiro-board" id="chinchiro-board-area">
-                <div class="dice-bowl">
-                    <div class="dice red-one" id="dice-0">
-                        <div class="dice-dot top-left"></div><div class="dice-dot top-right"></div>
-                        <div class="dice-dot center-left"></div><div class="dice-dot center-dot"></div><div class="dice-dot center-right"></div>
-                        <div class="dice-dot bottom-left"></div><div class="dice-dot bottom-right"></div>
+                <!-- サイコロエリア。最初は非表示に設定 -->
+                <div class="dice-container" id="chinchiro-dice-container">
+                    <div class="dice" id="dice-1" data-value="1">
+                        <div class="dice-grid">
+                            <div class="dot dot-1"></div><div class="dot dot-2"></div><div class="dot dot-3"></div>
+                            <div class="dot dot-4"></div><div class="dot dot-5"></div><div class="dot dot-6"></div>
+                            <div class="dot dot-7"></div><div class="dot dot-8"></div><div class="dot dot-9"></div>
+                        </div>
                     </div>
-                    <div class="dice red-one" id="dice-1">
-                        <div class="dice-dot top-left"></div><div class="dice-dot top-right"></div>
-                        <div class="dice-dot center-left"></div><div class="dice-dot center-dot"></div><div class="dice-dot center-right"></div>
-                        <div class="dice-dot bottom-left"></div><div class="dice-dot bottom-right"></div>
+                    <div class="dice" id="dice-2" data-value="2">
+                        <div class="dice-grid">
+                            <div class="dot dot-1"></div><div class="dot dot-2"></div><div class="dot dot-3"></div>
+                            <div class="dot dot-4"></div><div class="dot dot-5"></div><div class="dot dot-6"></div>
+                            <div class="dot dot-7"></div><div class="dot dot-8"></div><div class="dot dot-9"></div>
+                        </div>
                     </div>
-                    <div class="dice red-one" id="dice-2">
-                        <div class="dice-dot top-left"></div><div class="dice-dot top-right"></div>
-                        <div class="dice-dot center-left"></div><div class="dice-dot center-dot"></div><div class="dice-dot center-right"></div>
-                        <div class="dice-dot bottom-left"></div><div class="dice-dot bottom-right"></div>
+                    <div class="dice" id="dice-3" data-value="3">
+                        <div class="dice-grid">
+                            <div class="dot dot-1"></div><div class="dot dot-2"></div><div class="dot dot-3"></div>
+                            <div class="dot dot-4"></div><div class="dot dot-5"></div><div class="dot dot-6"></div>
+                            <div class="dot dot-7"></div><div class="dot dot-8"></div><div class="dot dot-9"></div>
+                        </div>
                     </div>
                 </div>
-
-                <div id="chinchiro-result-announce" style="text-align:center; font-size:1.4rem; font-weight:bold; color:var(--accent-color); min-height:2rem; margin-bottom:5px;"></div>
-
                 <div class="action-container">
-                    <button class="btn btn-success" id="btn-chinchiro-roll" onclick="rollChinchiroDice()" style="background:#8c7ae6; max-width:240px; padding:12px 20px;">🎲 サイコロを振る</button>
+                    <button class="btn btn-success" id="btn-roll-dice" onclick="rollDiceChinchiro()">🎲 サイコロを振る</button>
                 </div>
-
-                <div style="margin-top:10px;">
-                    <div style="font-size:0.8rem; color:#aaa; margin-bottom:4px;">出目ログ履歴:</div>
-                    <div class="chinchiro-history" id="chinchiro-log-list"></div>
+                <div style="margin-top: 10px;">
+                    <div style="font-size:0.8rem; margin-bottom:4px; color:#aaa;">出目履歴・ログ</div>
+                    <div class="dice-result-log" id="chinchiro-log"></div>
                 </div>
             </div>
 
@@ -742,10 +745,6 @@
                 gameState = data.state;
                 syncGameUI();
             }
-            else if (data.type === 'CHINCHIRO_ROLL_ANIMATION') {
-                // リモートプレイヤーがダイスを振った際のアニメーション演出同期
-                triggerLocalDiceRollEffect(data.dices, data.resultText);
-            }
             else if (data.type === 'REALTIME_DRAW_BATCH') {
                 (data.actions || []).forEach(a => handleRemoteDrawAction(a));
             }
@@ -757,6 +756,14 @@
                 gameState.isStarted = false;
                 document.getElementById('game-workspace').classList.remove('active');
                 document.getElementById('lobby-panel').classList.add('active');
+            }
+            else if (data.type === 'CHINCHIRO_DICE_ROLL') {
+                // リモートからのサイコロ同期とコンテナの表示化
+                document.getElementById('chinchiro-dice-container').style.display = 'flex';
+                document.getElementById('dice-1').setAttribute('data-value', data.d1);
+                document.getElementById('dice-2').setAttribute('data-value', data.d2);
+                document.getElementById('dice-3').setAttribute('data-value', data.d3);
+                appendDiceLog(data.roller, data.d1, data.d2, data.d3, data.yaku);
             }
         });
         conn.on('close', () => { delete connections[conn.peer]; rebuildPlayerList(); });
@@ -809,17 +816,6 @@
             div.innerHTML = label;
             wrapper.appendChild(div);
         });
-
-        if (gameState.isStarted && gameState.roster && gameState.roster.length) {
-            const rosterAccIds = new Set(gameState.roster.map(p => p.accId));
-            const spectators = sortedPlayers.filter(p => !rosterAccIds.has(p.accId));
-            spectators.forEach(p => {
-                const div = document.createElement('div');
-                div.className = `member-item ${p.accId === myAccountId ? 'me' : ''}`;
-                div.innerHTML = `<div>${p.name} <span class="badge" style="background:#888;">👀観戦中</span></div>`;
-                wrapper.appendChild(div);
-            });
-        }
     }
 
     function sendReturnToLobby() {
@@ -861,107 +857,69 @@
         syncGameUI();
     }
 
-    /* チンチロ 制御ロジック */
+    /* チンチロのゲーム初期化 (伝統ダイスゲームの文言をチンチロに変更) */
     function hostChinchiroGame() {
-        if(sortedPlayers.length < 2) { customAlert("2人以上のプレイヤーが必要です。"); return; }
+        if(sortedPlayers.length < 1) { customAlert("プレイヤーが必要です。"); return; }
         gameState.isStarted = true;
         gameState.gameType = 'chinchiro';
         gameState.roster = sortedPlayers.map(p => ({ accId: p.accId, name: p.name }));
         gameState.turnIndex = 0;
-        gameState.history = []; // ログ履歴として使い回す
         gameState.isEnded = false;
+        
+        broadcast({ type: 'SYNC_GAME', state: gameState });
+        syncGameUI();
+        
+        // サイコロコンテナの初期化(最初の1回は振っていないので非表示にする)
+        document.getElementById('chinchiro-dice-container').style.display = 'none';
+        document.getElementById('chinchiro-log').innerHTML = "";
+    }
 
+    /* チンチロのサイコロを振るアクション */
+    function rollDiceChinchiro() {
+        const activePlayer = getActivePlayer();
+        if(!activePlayer || activePlayer.accId !== myAccountId) return;
+        
+        // 振ったタイミングでコンテナを表示する
+        document.getElementById('chinchiro-dice-container').style.display = 'flex';
+
+        const d1 = Math.floor(Math.random() * 6) + 1;
+        const d2 = Math.floor(Math.random() * 6) + 1;
+        const d3 = Math.floor(Math.random() * 6) + 1;
+
+        document.getElementById('dice-1').setAttribute('data-value', d1);
+        document.getElementById('dice-2').setAttribute('data-value', d2);
+        document.getElementById('dice-3').setAttribute('data-value', d3);
+
+        const yaku = getChinchiroYaku(d1, d2, d3);
+        appendDiceLog(myName, d1, d2, d3, yaku);
+
+        broadcast({ type: 'CHINCHIRO_DICE_ROLL', roller: myName, d1: d1, d2: d2, d3: d3, yaku: yaku });
+
+        gameState.turnIndex = (gameState.turnIndex + 1) % getRoster().length;
         broadcast({ type: 'SYNC_GAME', state: gameState });
         syncGameUI();
     }
 
-    function rollChinchiroDice() {
-        const activePlayer = getActivePlayer();
-        if(!activePlayer || activePlayer.accId !== myAccountId) return;
-
-        document.getElementById('btn-chinchiro-roll').disabled = true;
-
-        // 3つのサイコロを完全に等確率(1/6ずつ)でランダムに選定
-        const d1 = Math.floor(Math.random() * 6) + 1;
-        const d2 = Math.floor(Math.random() * 6) + 1;
-        const d3 = Math.floor(Math.random() * 6) + 1;
-        const dices = [d1, d2, d3];
-
-        // 役判定
-        const resultText = judgeChinchiroRole(dices);
-
-        // リアルタイム演出用データを全員に横流し
-        broadcast({ type: 'CHINCHIRO_ROLL_ANIMATION', dices: dices, resultText: resultText });
-        
-        // 自分自身にもアニメーション実行
-        triggerLocalDiceRollEffect(dices, resultText, () => {
-            // アニメーション完了後に状態を本格同期してターンを回す
-            gameState.history.unshift({ name: myName, dices: dices.join(', '), role: resultText });
-            if (gameState.history.length > 50) gameState.history.pop();
-
-            gameState.turnIndex = (gameState.turnIndex + 1) % getRoster().length;
-            broadcast({ type: 'SYNC_GAME', state: gameState });
-            syncGameUI();
-        });
+    function getChinchiroYaku(d1, d2, d3) {
+        const sorted = [d1, d2, d3].sort();
+        if (sorted[0] === sorted[1] && sorted[1] === sorted[2]) {
+            return sorted[0] === 1 ? "ピンゾロ (最強役)" : `アラシ (目:${sorted[0]})`;
+        }
+        if (sorted[0] === 4 && sorted[1] === 5 && sorted[2] === 6) return "シゴロ (強役)";
+        if (sorted[0] === 1 && sorted[1] === 2 && sorted[2] === 3) return "ヒフミ (負け役)";
+        if (d1 === d2) return `目: ${d3}`;
+        if (d2 === d3) return `目: ${d1}`;
+        if (d1 === d3) return `目: ${d2}`;
+        return "役なし (ションベン)";
     }
 
-    // チンチロの伝統的な役の判定関数
-    function judgeChinchiroRole(dices) {
-        const sorted = [...dices].sort((a, b) => a - b);
-        
-        // 1. ゾロ目判定
-        if (sorted[0] === sorted[2]) {
-            if (sorted[0] === 1) return "ピンゾロ (最強役・5倍付け)";
-            return `${sorted[0]}のゾロ目 (3倍付け)`;
-        }
-        
-        // 2. シゴロ (4, 5, 6)
-        if (sorted[0] === 4 && sorted[1] === 5 && sorted[2] === 6) {
-            return "シゴロ (強役・2倍付け)";
-        }
-        
-        // 3. ヒフミ (1, 2, 3)
-        if (sorted[0] === 1 && sorted[1] === 2 && sorted[2] === 3) {
-            return "ヒフミ (最悪役・2倍払いペナルティ)";
-        }
-        
-        // 4. 通常の目 (2つ被り)
-        if (sorted[0] === sorted[1]) return `${sorted[2]}の目`;
-        if (sorted[1] === sorted[2]) return `${sorted[0]}의目`; // ソート済みの真ん中と後ろが被る
-        if (dices[0] === dices[2]) return `${dices[1]}の目`; // ソート前を考慮
-
-        return "目なし (役なし)";
-    }
-
-    function triggerLocalDiceRollEffect(dices, resultText, callback) {
-        const resultLabel = document.getElementById('chinchiro-result-announce');
-        resultLabel.textContent = "丼（お皿）の中で回転中... 🌀";
-
-        for (let i = 0; i < 3; i++) {
-            const diceEl = document.getElementById(`dice-${i}`);
-            // ランダムな跳ね返りベクトルをCSS変数に注入
-            diceEl.style.setProperty('--rx', (Math.random() * 40 - 20) + 'px');
-            diceEl.style.setProperty('--ry', (Math.random() * 40 - 20) + 'px');
-            diceEl.style.setProperty('--rx2', (Math.random() * 40 - 20) + 'px');
-            diceEl.style.setProperty('--ry2', (Math.random() * 40 - 20) + 'px');
-            diceEl.style.setProperty('--rx3', (Math.random() * 40 - 20) + 'px');
-            diceEl.style.setProperty('--ry3', (Math.random() * 40 - 20) + 'px');
-            diceEl.style.setProperty('--rx4', (Math.random() * 40 - 20) + 'px');
-            diceEl.style.setProperty('--ry4', (Math.random() * 40 - 20) + 'px');
-            
-            diceEl.removeAttribute('data-value');
-            diceEl.classList.add('rolling');
-        }
-
-        setTimeout(() => {
-            for (let i = 0; i < 3; i++) {
-                const diceEl = document.getElementById(`dice-${i}`);
-                diceEl.classList.remove('rolling');
-                diceEl.setAttribute('data-value', dices[i]);
-            }
-            resultLabel.textContent = `結果：${resultText}`;
-            if (callback) callback();
-        }, 1200);
+    function appendDiceLog(name, d1, d2, d3, yaku) {
+        const log = document.getElementById('chinchiro-log');
+        const item = document.createElement('div');
+        item.className = "dice-log-item";
+        item.innerHTML = `<strong>${name}</strong> の出目: [${d1}, ${d2}, ${d3}] ➔ <span style="color:var(--accent-color);">${yaku}</span>`;
+        log.appendChild(item);
+        log.scrollTop = log.scrollHeight;
     }
 
     function setTool(tool) {
@@ -1202,7 +1160,6 @@
         const activePlayer = getActivePlayer();
         const isMyTurn = (activePlayer && activePlayer.accId === myAccountId);
 
-        // 各ゲームモードの描画切り替え
         if (gameState.gameType === 'uno') {
             document.getElementById('game-title-label').textContent = "UNO プレイフィールド";
             document.getElementById('uno-board-area').classList.add('active');
@@ -1307,16 +1264,18 @@
             clearUnoTimer();
             document.getElementById('uno-emergency-alert-bar').style.display = 'none';
             document.getElementById('game-title-label').textContent = "お絵描きしりとりルーム";
-            document.getElementById('uno-board-area').classList.remove('active');
-            document.getElementById('draw-board-area').classList.add('active');
-            document.getElementById('chinchiro-board-area').classList.remove('active');
             
             if (gameState.isEnded) {
+                document.getElementById('uno-board-area').classList.remove('active');
                 document.getElementById('draw-board-area').classList.remove('active');
+                document.getElementById('chinchiro-board-area').classList.remove('active');
                 document.getElementById('draw-result-area').classList.add('active');
                 document.getElementById('game-info').textContent = "🎉 答え合わせ！みんなでしりとりが繋がっているか確認しましょう！";
                 renderResults();
             } else {
+                document.getElementById('uno-board-area').classList.remove('active');
+                document.getElementById('draw-board-area').classList.add('active');
+                document.getElementById('chinchiro-board-area').classList.remove('active');
                 document.getElementById('draw-result-area').classList.remove('active');
 
                 if (lastKnownTurnIndex !== gameState.turnIndex) {
@@ -1354,35 +1313,21 @@
                 }
             }
         } else if (gameState.gameType === 'chinchiro') {
-            clearUnoTimer();
-            document.getElementById('uno-emergency-alert-bar').style.display = 'none';
-            document.getElementById('game-title-label').textContent = "伝統ダイスゲーム：チンチロリン";
-            
+            /* タイトル表記を「伝統ダイスゲーム:チンチロ」から「チンチロ」に変更 */
+            document.getElementById('game-title-label').textContent = "チンチロ";
             document.getElementById('uno-board-area').classList.remove('active');
             document.getElementById('draw-board-area').classList.remove('active');
-            document.getElementById('draw-result-area').classList.remove('active');
             document.getElementById('chinchiro-board-area').classList.add('active');
+            document.getElementById('draw-result-area').classList.remove('active');
 
             const infoBar = document.getElementById('game-info');
-            const rollBtn = document.getElementById('btn-chinchiro-roll');
-
             if (isMyTurn) {
-                infoBar.textContent = "⚡ あなたの番です！お皿にサイコロを投げ込んでください！";
-                rollBtn.disabled = false;
+                infoBar.textContent = "⚡ あなたの番です！「サイコロを振る」ボタンを押して出目を決めましょう！";
+                document.getElementById('btn-roll-dice').disabled = false;
             } else {
-                infoBar.textContent = `⏱️ ${activePlayer ? activePlayer.name : '相手'}がダイスを構えています...`;
-                rollBtn.disabled = true;
+                infoBar.textContent = `⏱️ ${activePlayer ? activePlayer.name : 'プレイヤー'}がサイコロの準備をしています...`;
+                document.getElementById('btn-roll-dice').disabled = true;
             }
-
-            // 出目ログ履歴のレンダリング
-            const logList = document.getElementById('chinchiro-log-list');
-            logList.innerHTML = (gameState.history || []).map(log => `
-                <div class="chinchiro-history-item">
-                    <span style="color: #ffaa00; font-weight: bold;">${log.name}</span>
-                    <span>出目: [${log.dices}]</span>
-                    <span style="color: var(--accent-color); font-weight: bold;">${log.role}</span>
-                </div>
-            `).join('');
         }
     }
 
