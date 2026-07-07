@@ -183,6 +183,25 @@
 
         .kick-overlay { position: fixed; inset: 0; background: #0b0d16; z-index: 999999; display: none; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 30px; }
         .kick-box { max-width: 450px; background: var(--panel-color); padding: 30px; border-radius: 16px; border: 2px solid var(--danger-color); box-shadow: 0 0 30px rgba(231,76,60,0.4); }
+
+        /* チンチロ用CSS */
+        .chinchiro-board { display: none; flex-direction: column; gap: 10px; min-width: 0; }
+        .chinchiro-board.active { display: flex; }
+
+        .dice-stage { display: flex; justify-content: center; align-items: center; gap: 14px; padding: 20px 5px; background: rgba(0,0,0,0.3); border-radius: 10px; }
+        .chinchiro-die { width: 58px; height: 58px; background: #ffffff; color: #111; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; box-shadow: 0 3px 8px rgba(0,0,0,0.5); border: 3px solid var(--border-color); transition: border-color 0.15s ease; }
+        @media (min-width: 480px) { .chinchiro-die { width: 76px; height: 76px; font-size: 3rem; } }
+        .chinchiro-die.rolling { animation: dice-shake 0.15s infinite; border-color: var(--accent-color); }
+        @keyframes dice-shake { 0% { transform: rotate(-10deg) scale(1); } 50% { transform: rotate(10deg) scale(1.08); } 100% { transform: rotate(-10deg) scale(1); } }
+
+        .chinchiro-scoreboard { display: flex; flex-direction: column; gap: 6px; }
+        .chinchiro-score-row { display: flex; justify-content: space-between; align-items: center; background: #0b0d16; border-radius: 8px; padding: 8px 10px; border-left: 4px solid #555; font-size: 0.8rem; gap: 8px; flex-wrap: wrap; }
+        .chinchiro-score-row.active-turn { border-left-color: #ffaa00; background: rgba(255,170,0,0.1); }
+        .chinchiro-score-row.finished { border-left-color: var(--success-color); }
+        .chinchiro-mini-dice { display: flex; gap: 3px; }
+        .chinchiro-mini-die { width: 22px; height: 22px; background: #fff; color: #111; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 1rem; border: 1px solid var(--border-color); flex-shrink: 0; }
+        .chinchiro-hand-label { font-weight: bold; color: var(--accent-color); font-size: 0.78rem; white-space: nowrap; }
+        .chinchiro-rank-num { font-weight: 900; color: #ffd54f; min-width: 30px; }
     </style>
 </head>
 <body>
@@ -217,6 +236,7 @@
         <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;" id="lobby-game-buttons">
             <button class="btn btn-success" id="btn-start-uno" onclick="GameRegistry.uno.hostGame()">UNO を開始</button>
             <button class="btn btn-purple" id="btn-start-draw" onclick="GameRegistry.shiritori.hostGame()">お絵描きしりとり を開始</button>
+            <button class="btn btn-purple" id="btn-start-chinchiro" onclick="GameRegistry.chinchiro.hostGame()">🎲 チンチロ を開始</button>
             <button class="btn btn-danger" onclick="leaveRoom()">🚪 部屋から退出する</button>
         </div>
     </div>
@@ -511,5 +531,6 @@
 
 <script src="games/uno.js"></script>
 <script src="games/shiritori.js"></script>
+<script src="games/chinchiro.js"></script>
 </body>
 </html>

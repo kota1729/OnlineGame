@@ -533,6 +533,8 @@ GameRegistry.shiritori = {
         document.getElementById('game-title-label').textContent = "お絵描きしりとりルーム";
         const unoBoard = document.getElementById('uno-board-area');
         if(unoBoard) unoBoard.classList.remove('active');
+        const chinchiroBoard = document.getElementById('chinchiro-board-area');
+        if(chinchiroBoard) chinchiroBoard.classList.remove('active');
         
         if (gameState.isEnded) {
             document.getElementById('draw-board-area').classList.remove('active');
