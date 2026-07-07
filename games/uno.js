@@ -335,7 +335,7 @@ GameRegistry.uno = {
 
         putCards.forEach(c => gameState.discardPile.push(c));
         gameState.currentSuit = finalCard.color;
-        gameState.lastPlayedComboText = getJapaneseColor(firstCard.color) + firstCard.dispName;
+        gameState.lastPlayedComboText = `${myName}さんが [${this.getJapaneseColor(finalCard.color)}の${finalCard.dispName}] を${putCards.length}枚出しました`;
 
         if (myCards.length === 0) {
             gameState.isEnded = true;
