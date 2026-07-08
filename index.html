@@ -352,6 +352,20 @@
 <script>
     const GameRegistry = {};
 
+    // 学校など制限の厳しいネットワーク(UDP/直接P2Pがブロックされる環境)でも接続できるよう、
+    // STUNに加えてTURN(中継サーバー)を明示的に指定する。
+    // 下記はMetered社が提供する無料の公開TURN(openrelay)。本番運用では自前のTURNサーバーや
+    // 有料プランへの切り替えを推奨(無料枠は帯域・同時接続数に上限があります)。
+    const PEER_ICE_CONFIG = {
+        iceServers: [
+            { urls: 'stun:stun.relay.metered.ca:80' },
+            { urls: 'turn:global.relay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+            { urls: 'turn:global.relay.metered.ca:80?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+            { urls: 'turn:global.relay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+            { urls: 'turn:global.relay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+        ]
+    };
+
     let peer = null;
     let baseRoomWord = "";
     let myRoomWord = "";
@@ -500,7 +514,7 @@
 
     function tryCreateRoom() {
         if(peer) peer.destroy();
-        peer = new Peer(`${baseRoomWord}-0`, { serialization: 'json' });
+        peer = new Peer(`${baseRoomWord}-0`, { serialization: 'json', config: PEER_ICE_CONFIG });
 
         peer.on('open', (id) => {
             myId = id;
@@ -522,7 +536,7 @@
 
     function tryJoinRoom(index) {
         if(peer) peer.destroy();
-        peer = new Peer(`${baseRoomWord}-${index}`, { serialization: 'json' });
+        peer = new Peer(`${baseRoomWord}-${index}`, { serialization: 'json', config: PEER_ICE_CONFIG });
 
         peer.on('open', (id) => {
             myId = id;
