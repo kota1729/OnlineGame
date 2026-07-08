@@ -21,9 +21,7 @@ GameRegistry.uno = {
                 <div class="pending-draw-indicator" id="pending-draw-indicator" style="display:none;"></div>
 
                 <div class="uno-table-wrapper" id="uno-table-wrapper">
-                    <div class="uno-seat uno-seat-top" id="uno-seat-top" style="display:none;"></div>
-                    <div class="uno-seat uno-seat-left" id="uno-seat-left" style="display:none;"></div>
-                    <div class="uno-seat uno-seat-right" id="uno-seat-right" style="display:none;"></div>
+                    <div class="uno-seats-layer" id="uno-seats-layer"></div>
 
                     <div class="play-area" id="uno-play-area">
                         <div style="text-align:center;">
@@ -36,8 +34,6 @@ GameRegistry.uno = {
                             <div class="uno-history-text" id="uno-card-history" style="display:none;"></div>
                         </div>
                     </div>
-
-                    <div class="uno-seat uno-seat-bottom-label" id="uno-seat-bottom-label" style="display:none;"></div>
                 </div>
                 <div class="color-selector" id="uno-color-selector">
                     <div class="color-btn" style="background:var(--uno-red);" onclick="GameRegistry.uno.selectWildColor('red')"></div>
@@ -517,85 +513,103 @@ GameRegistry.uno = {
         return idx;
     },
 
-    buildMiniCardFan: function(count) {
-        const shown = Math.min(count, 5);
-        let html = '<div class="uno-mini-fan">';
+    // 手札枚数に応じて、雀卓の縁に刺さって立っているようなカードの束(扇状)を生成する
+    buildSeatFan: function(count) {
+        const shown = Math.max(1, Math.min(count, 7));
+        const maxSpread = Math.min(56, 16 + shown * 7);
+        const step = shown > 1 ? maxSpread / (shown - 1) : 0;
+        const start = -maxSpread / 2;
+        let html = '';
         for (let i = 0; i < shown; i++) {
-            html += `<div class="uno-mini-card-back"></div>`;
+            const deg = shown > 1 ? (start + step * i) : 0;
+            html += `<div class="uno-seat-tile" style="transform:rotate(${deg.toFixed(1)}deg); z-index:${i};"></div>`;
         }
-        html += '</div>';
         return html;
     },
 
-    // 2〜4人プレイ時のみ、雀卓のようにみんなで囲む座席レイアウトを描画する。
+    // n人分の座席を、卓の縁(円周 or 四角形の周)上に均等配置するための座標と回転角を計算する。
+    // 自分(i=0)は必ず手前(下)に固定し、以降は手番順に時計回りへ配置していく。
+    // 偶数人数 → 四角の卓、奇数人数 → 正円の卓 になるよう形状を切り替える。
+    computeSeatLayout: function(n) {
+        const shape = (n % 2 === 0) ? 'square' : 'circle';
+        const R = 43; // 卓中心からの距離(%)
+        const layout = [];
+        for (let i = 0; i < n; i++) {
+            const phiDeg = (180 + i * (360 / n)) % 360;
+            const phiRad = phiDeg * Math.PI / 180;
+            const dx = Math.sin(phiRad);
+            const dy = -Math.cos(phiRad);
+            let xPct, yPct;
+            if (shape === 'circle') {
+                xPct = 50 + dx * R;
+                yPct = 50 + dy * R;
+            } else {
+                // 円周上の角度を、四角形の縁上の対応点へ投影する
+                const scale = 1 / Math.max(Math.abs(dx), Math.abs(dy), 0.0001);
+                xPct = 50 + dx * scale * R;
+                yPct = 50 + dy * scale * R;
+            }
+            // カードの束が卓の中心へ向かって刺さって見えるように回転角を算出
+            const rotationDeg = (i * 360 / n) % 360;
+            layout.push({ xPct, yPct, rotationDeg });
+        }
+        return { shape, layout };
+    },
+
+    // 何人でも、雀卓のようにみんなで囲む座席レイアウトを描画する。
     // ルールには一切関与せず、あくまで見た目の配置のみを担当する。
     renderTableView: function(activePlayer) {
         const wrapper = document.getElementById('uno-table-wrapper');
-        if (!wrapper) return;
-        const seatTop = document.getElementById('uno-seat-top');
-        const seatLeft = document.getElementById('uno-seat-left');
-        const seatRight = document.getElementById('uno-seat-right');
-        const seatBottom = document.getElementById('uno-seat-bottom-label');
+        const seatsLayer = document.getElementById('uno-seats-layer');
+        if (!wrapper || !seatsLayer) return;
 
         const roster = gameState.roster || [];
         const n = roster.length;
         const myIdx = roster.findIndex(p => p.accId === myAccountId);
-        const useTableMode = (n >= 2 && n <= 4 && myIdx !== -1);
+        const useTableMode = (n >= 2 && myIdx !== -1);
 
         wrapper.classList.toggle('table-mode', useTableMode);
 
         if (!useTableMode) {
-            [seatTop, seatLeft, seatRight, seatBottom].forEach(el => { if (el) el.style.display = 'none'; });
+            seatsLayer.innerHTML = '';
+            wrapper.classList.remove('shape-circle', 'shape-square');
             return;
         }
 
+        const { shape, layout } = this.computeSeatLayout(n);
+        wrapper.classList.toggle('shape-circle', shape === 'circle');
+        wrapper.classList.toggle('shape-square', shape === 'square');
+
         const connectedAccIds = new Set(sortedPlayers.map(p => p.accId));
 
-        const buildSeatData = (player) => {
+        // 自分を手前(i=0)に固定し、以降は手番順に並べる
+        const ordered = [];
+        for (let i = 0; i < n; i++) ordered.push(roster[(myIdx + i) % n]);
+
+        let html = '';
+        ordered.forEach((player, i) => {
+            const pos = layout[i];
             const cnt = (gameState.hands[player.accId] || []).length;
             const isTurn = activePlayer && activePlayer.accId === player.accId;
             const isConnected = connectedAccIds.has(player.accId);
-            const html = `
-                <div class="uno-seat-cards">${this.buildMiniCardFan(cnt)}</div>
-                <div class="uno-seat-info">
-                    <span class="uno-seat-name">${player.name}</span>
-                    <span class="uno-seat-count">${cnt}枚</span>
-                    ${cnt === 1 ? '<span class="uno-seat-warning">UNO!</span>' : ''}
-                    ${!isConnected ? '<span class="uno-seat-disconnect">切断中</span>' : ''}
+            const isMe = player.accId === myAccountId;
+
+            html += `
+                <div class="uno-seat-node ${isTurn ? 'active-turn' : ''} ${!isConnected ? 'disconnected' : ''} ${isMe ? 'me' : ''}"
+                     style="left:${pos.xPct.toFixed(2)}%; top:${pos.yPct.toFixed(2)}%;">
+                    <div class="uno-seat-fan" style="transform:rotate(${pos.rotationDeg.toFixed(1)}deg);">
+                        ${this.buildSeatFan(cnt)}
+                    </div>
+                    <div class="uno-seat-info">
+                        <span class="uno-seat-name">${player.name}${isMe ? '（あなた）' : ''}${isTurn ? ' 👉' : ''}</span>
+                        <span class="uno-seat-count">${cnt}枚</span>
+                        ${cnt === 1 ? '<span class="uno-seat-warning">UNO!</span>' : ''}
+                        ${!isConnected ? '<span class="uno-seat-disconnect">切断中</span>' : ''}
+                    </div>
                 </div>`;
-            return { isTurn, isConnected, html };
-        };
-
-        // 自分より後の順番のプレイヤーから順に、自分を除いた他プレイヤーを並べる
-        const others = [];
-        for (let i = 1; i < n; i++) {
-            others.push(roster[(myIdx + i) % n]);
-        }
-
-        const slotMap = {
-            2: [seatTop],
-            3: [seatLeft, seatRight],
-            4: [seatLeft, seatTop, seatRight]
-        };
-        const slots = slotMap[n];
-
-        [seatTop, seatLeft, seatRight].forEach(el => { if (el) el.style.display = 'none'; });
-
-        others.forEach((player, i) => {
-            const seatEl = slots[i];
-            if (!seatEl) return;
-            const d = buildSeatData(player);
-            seatEl.className = `uno-seat ${d.isTurn ? 'active-turn' : ''} ${!d.isConnected ? 'disconnected' : ''}`;
-            seatEl.innerHTML = d.html;
-            seatEl.style.display = 'flex';
         });
 
-        if (seatBottom) {
-            const d = buildSeatData(roster[myIdx]);
-            seatBottom.className = `uno-seat uno-seat-bottom-label me ${d.isTurn ? 'active-turn' : ''}`;
-            seatBottom.innerHTML = d.html;
-            seatBottom.style.display = 'flex';
-        }
+        seatsLayer.innerHTML = html;
     },
 
     syncUI: function() {
