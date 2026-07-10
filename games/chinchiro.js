@@ -18,9 +18,11 @@ GameRegistry.chinchiro = {
                 <div class="direction-indicator" id="chinchiro-turn-indicator">現在の番: -</div>
 
                 <div class="dice-stage" id="chinchiro-dice-stage">
-                    <div class="chinchiro-die" id="chinchiro-die-0">-</div>
-                    <div class="chinchiro-die" id="chinchiro-die-1">-</div>
-                    <div class="chinchiro-die" id="chinchiro-die-2">-</div>
+                    <div class="chinchiro-dish">
+                        <div class="chinchiro-die" id="chinchiro-die-0">-</div>
+                        <div class="chinchiro-die" id="chinchiro-die-1">-</div>
+                        <div class="chinchiro-die" id="chinchiro-die-2">-</div>
+                    </div>
                 </div>
                 <div style="text-align:center; font-size:0.85rem; color:var(--accent-color); font-weight:bold; min-height:1.2em;" id="chinchiro-current-hand-label"></div>
 
@@ -33,10 +35,25 @@ GameRegistry.chinchiro = {
                     <div class="chinchiro-scoreboard" id="chinchiro-scoreboard"></div>
                 </div>
 
-                <div style="margin-top:10px; background:rgba(0,0,0,0.25); padding:8px; border-radius:8px; font-size:0.7rem; color:#aaa; line-height:1.6;">
-                    <strong style="color:var(--accent-color);">役の強さ (強い順)：</strong><br>
-                    ピンゾロ(1-1-1) &gt; ゾロ目(2〜6の三つ揃い) &gt; シゴロ(4-5-6) &gt; ○の目(ペア+残り目の大きさ、6が最強) &gt; ヒフミ(1-2-3、弱い役) &gt; 役なし(3回振っても揃わず)
-                </div>
+                <details class="chinchiro-rules">
+                    <summary>📖 チンチロのルールを見る</summary>
+                    <div class="rules-body">
+                        <h4>遊び方</h4>
+                        <ol>
+                            <li>順番に一人ずつ、お皿の中でサイコロ3個を振ります。</li>
+                            <li>役ができなかった場合、<strong>最大3回まで</strong>振り直せます（3回とも役なしなら「役なし」で確定し、次の人に交代）。</li>
+                            <li>役ができたら、その時点で自分の番は終わり、次の人に交代します。</li>
+                            <li>全員が振り終えたら、一番強い役を出した人（同じ強さなら複数人）が優勝です！</li>
+                        </ol>
+                        <h4>役の強さ（強い順）</h4>
+                        <div class="rules-hand-row"><span>① ピンゾロ</span><span>1-1-1（最強）</span></div>
+                        <div class="rules-hand-row"><span>② ゾロ目</span><span>2〜6の三つ揃い</span></div>
+                        <div class="rules-hand-row"><span>③ シゴロ</span><span>4-5-6</span></div>
+                        <div class="rules-hand-row"><span>④ ○の目</span><span>2個同じ目＋残り1個 (例:5-5-2)。ペアの数字が大きいほど強い</span></div>
+                        <div class="rules-hand-row"><span>⑤ ヒフミ</span><span>1-2-3（弱い役）</span></div>
+                        <div class="rules-hand-row"><span>⑥ 役なし</span><span>3回振っても役が揃わなかった場合（最弱）</span></div>
+                    </div>
+                </details>
             </div>
         </div>
     `,
@@ -117,7 +134,7 @@ GameRegistry.chinchiro = {
 
     playRollingAnimation: function() {
         const dieEls = [0, 1, 2].map(i => document.getElementById(`chinchiro-die-${i}`));
-        dieEls.forEach(el => { if (el) el.classList.add('rolling'); });
+        dieEls.forEach(el => { if (el) { el.classList.remove('landed'); el.classList.add('rolling'); } });
 
         if (this.rollingInterval) clearInterval(this.rollingInterval);
         this.rollingInterval = setInterval(() => {
@@ -126,8 +143,15 @@ GameRegistry.chinchiro = {
 
         setTimeout(() => {
             if (this.rollingInterval) { clearInterval(this.rollingInterval); this.rollingInterval = null; }
-            dieEls.forEach(el => { if (el) el.classList.remove('rolling'); });
-        }, 880);
+            dieEls.forEach(el => {
+                if (el) {
+                    el.classList.remove('rolling');
+                    el.classList.add('landed');
+                }
+            });
+            // お皿に着地した時のバウンド演出が終わったらクラスを外しておく
+            setTimeout(() => { dieEls.forEach(el => { if (el) el.classList.remove('landed'); }); }, 320);
+        }, 850);
     },
 
     finalizeRoll: function() {
