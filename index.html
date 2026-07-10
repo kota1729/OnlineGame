@@ -116,89 +116,6 @@
         .uno-card-back { background: linear-gradient(150deg, #d63333, #7a0d0d 70%); border: 3px solid white; }
         .uno-card-back::after { content: "UNO"; position: relative; z-index: 1; color: #ffaa00; font-style: italic; font-size: 0.85rem; font-weight: 900; transform: rotate(-20deg); text-shadow: 1px 1px 2px rgba(0,0,0,0.8); }
 
-        /* 雀卓風UNOレイアウト（人数に応じて自動で円卓/角卓に切替、どの端末でも常に正しい比率で表示） */
-        .uno-table-wrapper { position: relative; }
-        .uno-table-wrapper.table-mode {
-            width: min(92vw, 480px);
-            aspect-ratio: 1 / 1;
-            margin: 14px auto 40px auto;
-            position: relative;
-            background:
-                radial-gradient(ellipse at center, #1d6b40 0%, #0b3a22 78%);
-            border: clamp(8px, 2.6vw, 13px) solid #6b4423;
-            box-shadow: inset 0 0 30px rgba(0,0,0,0.6), inset 0 0 0 3px rgba(255,255,255,0.06), 0 5px 16px rgba(0,0,0,0.5);
-            display: flex; align-items: center; justify-content: center;
-        }
-        /* 偶数人数 → 角丸の四角い卓 */
-        .uno-table-wrapper.table-mode.shape-square { border-radius: 9%; }
-        /* 奇数人数 → 正円の卓 */
-        .uno-table-wrapper.table-mode.shape-circle { border-radius: 50%; }
-
-        .uno-table-wrapper:not(.table-mode) .uno-seats-layer { display: none !important; }
-        .uno-table-wrapper.table-mode .play-area {
-            background: transparent; padding: 0; position: relative; z-index: 2; gap: clamp(8px, 3.4vw, 16px);
-        }
-        .uno-table-wrapper.table-mode .play-area .uno-card { width: clamp(38px, 10.5vw, 62px); height: clamp(58px, 15.5vw, 94px); font-size: clamp(0.62rem, 2.3vw, 1rem); }
-
-        /* 座席は卓の縁の座標上へJSで動的配置される */
-        .uno-seats-layer { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
-
-        .uno-seat-node {
-            position: absolute;
-            transform: translate(-50%, -50%);
-            display: flex; flex-direction: column; align-items: center;
-            width: clamp(48px, 16vw, 82px);
-        }
-
-        /* 卓の縁に刺さって立っているカードの束（扇形） */
-        .uno-seat-fan {
-            position: relative;
-            height: clamp(24px, 7vw, 34px);
-            width: 100%;
-            display: flex; justify-content: center; align-items: flex-end;
-            transform-origin: 50% 100%;
-            filter: drop-shadow(0 3px 3px rgba(0,0,0,0.6));
-        }
-        .uno-seat-tile {
-            position: absolute;
-            bottom: 0;
-            width: clamp(11px, 3.4vw, 16px);
-            height: clamp(18px, 5.6vw, 25px);
-            background: linear-gradient(150deg, #d63333, #7a0d0d 70%);
-            border: 1.4px solid #fff;
-            border-radius: 3px 3px 2px 2px;
-            transform-origin: 50% 100%;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.45);
-        }
-        .uno-seat-tile::after {
-            content: ""; position: absolute; left: 50%; top: 52%; width: 55%; height: 55%;
-            transform: translate(-50%, -50%) rotate(-20deg);
-            border: 1px solid rgba(255,255,255,0.5); border-radius: 50%;
-        }
-        /* 卓の縁(木枠)に差し込まれている影を表現 */
-        .uno-seat-fan::before {
-            content: ""; position: absolute; bottom: -3px; left: 50%; transform: translateX(-50%);
-            width: 70%; height: 6px; background: rgba(0,0,0,0.45); border-radius: 50%; filter: blur(2px);
-        }
-
-        .uno-seat-info {
-            margin-top: 2px;
-            background: rgba(0,0,0,0.45);
-            padding: 2px 7px;
-            border-radius: 8px;
-            border: 2px solid transparent;
-            display: flex; flex-direction: column; align-items: center;
-            max-width: 100%;
-        }
-        .uno-seat-node.active-turn .uno-seat-info { border-color: #ffaa00; box-shadow: 0 0 10px rgba(255,170,0,0.65); }
-        .uno-seat-node.disconnected { opacity: 0.5; }
-        .uno-seat-node.me .uno-seat-info { border-color: var(--accent-color); }
-
-        .uno-seat-name { font-size: clamp(0.56rem, 1.9vw, 0.7rem); font-weight: bold; color: #fff; white-space: nowrap; max-width: 92px; overflow: hidden; text-overflow: ellipsis; }
-        .uno-seat-count { font-size: clamp(0.52rem, 1.7vw, 0.62rem); color: var(--accent-color); display: block; }
-        .uno-seat-warning { font-size: 0.58rem; font-weight: 900; color: #ff5555; display: block; animation: uno-pulse 0.7s infinite; }
-        .uno-seat-disconnect { font-size: 0.52rem; color: #ff8888; display: block; }
-
         .hand-section { background: var(--panel-light); padding: 8px; border-radius: 8px; margin-top: 5px; min-width: 0; }
         .hand-title { font-size: 0.8rem; margin-bottom: 4px; color: var(--text-white); display: flex; justify-content: space-between; }
         
@@ -295,43 +212,17 @@
     </header>
 
     <div class="login-grid-wrapper" id="login-panel">
-        <div class="panel" id="mode-select-panel">
-            <div class="panel-title">🎮 ゲームルームへようこそ</div>
-            <div class="input-group">
-                <button class="btn btn-success" id="btn-mode-create" style="width:100%; padding:16px;">🏠 ルームを作成する</button>
-                <button class="btn btn-purple" id="btn-mode-join" style="width:100%; padding:16px;">🚪 ルームに参加する</button>
-            </div>
-        </div>
-
-        <div class="panel" id="create-room-panel" style="display:none;">
-            <div class="panel-title">✨ 新しいルームを作成</div>
+        <div class="panel">
+            <div class="panel-title">✨ 新規作成で参加</div>
             <div class="input-group">
                 <label>ニックネーム<span>(必須)</span>
-                    <input type="text" id="inp-create-name" placeholder="例: たかし">
+                    <input type="text" id="inp-name" placeholder="例: たかし">
                 </label>
                 <label>部屋の合言葉<span>(必須・ひらがなのみ)</span>
-                    <input type="text" id="inp-create-room" placeholder="例: ひみつのへや">
-                </label>
-                <label>参加人数<span>(2〜10人・あなた自身を含む)</span>
-                    <input type="text" inputmode="numeric" id="inp-create-count" placeholder="例: 4">
+                    <input type="text" id="inp-room" placeholder="例: ひみつのへや">
                 </label>
             </div>
-            <button class="btn btn-success" id="btn-create-room" style="width: 100%;">部屋を作成する</button>
-            <button class="btn" id="btn-back-from-create" style="width: 100%; margin-top:8px;">戻る</button>
-        </div>
-
-        <div class="panel" id="join-room-panel" style="display:none;">
-            <div class="panel-title">🚪 ルームに参加</div>
-            <div class="input-group">
-                <label>ニックネーム<span>(必須)</span>
-                    <input type="text" id="inp-join-name" placeholder="例: たかし">
-                </label>
-                <label>部屋の合言葉<span>(必須・ひらがなのみ)</span>
-                    <input type="text" id="inp-join-room" placeholder="例: ひみつのへや">
-                </label>
-            </div>
-            <button class="btn btn-success" id="btn-join-room" style="width: 100%;">部屋に参加する</button>
-            <button class="btn" id="btn-back-from-join" style="width: 100%; margin-top:8px;">戻る</button>
+            <button class="btn btn-success" id="btn-connect-new" style="width: 100%;">部屋に接続する</button>
         </div>
     </div>
 
@@ -342,11 +233,10 @@
         <div class="status-bar" id="lobby-room-word" style="margin-top:8px; font-size:0.85rem; border-left-color:#8e44ad;">合言葉: -</div>
         <div class="status-bar" id="lobby-wait-count" style="margin-top:8px; font-size:0.85rem;">現在 0 人が待機中</div>
         <div id="lobby-wait-list" style="display:flex; flex-wrap:wrap; gap:5px; justify-content:center; margin-top:4px;"></div>
-        <div class="status-bar" id="lobby-fill-hint" style="margin-top:8px; font-size:0.8rem; border-left-color:#ffaa00; display:none;"></div>
         <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;" id="lobby-game-buttons">
-            <button class="btn btn-success" id="btn-start-uno" onclick="GameRegistry.uno.hostGame()" disabled>UNO を開始</button>
-            <button class="btn btn-purple" id="btn-start-draw" onclick="GameRegistry.shiritori.hostGame()" disabled>お絵描きしりとり を開始</button>
-            <button class="btn btn-purple" id="btn-start-chinchiro" onclick="GameRegistry.chinchiro.hostGame()" disabled>🎲 チンチロ を開始</button>
+            <button class="btn btn-success" id="btn-start-uno" onclick="GameRegistry.uno.hostGame()">UNO を開始</button>
+            <button class="btn btn-purple" id="btn-start-draw" onclick="GameRegistry.shiritori.hostGame()">お絵描きしりとり を開始</button>
+            <button class="btn btn-purple" id="btn-start-chinchiro" onclick="GameRegistry.chinchiro.hostGame()">🎲 チンチロ を開始</button>
             <button class="btn btn-danger" onclick="leaveRoom()">🚪 部屋から退出する</button>
         </div>
     </div>
@@ -395,20 +285,6 @@
 <script>
     const GameRegistry = {};
 
-    // 学校など制限の厳しいネットワーク(UDP/直接P2Pがブロックされる環境)でも接続できるよう、
-    // STUNに加えてTURN(中継サーバー)を明示的に指定する。
-    // 下記はMetered社が提供する無料の公開TURN(openrelay)。本番運用では自前のTURNサーバーや
-    // 有料プランへの切り替えを推奨(無料枠は帯域・同時接続数に上限があります)。
-    const PEER_ICE_CONFIG = {
-        iceServers: [
-            { urls: 'stun:stun.relay.metered.ca:80' },
-            { urls: 'turn:global.relay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-            { urls: 'turn:global.relay.metered.ca:80?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
-            { urls: 'turn:global.relay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-            { urls: 'turn:global.relay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
-        ]
-    };
-
     let peer = null;
     let baseRoomWord = "";
     let myRoomWord = "";
@@ -417,9 +293,6 @@
     let myId = "";
     let connections = {}; 
     let sortedPlayers = []; 
-    let isRoomCreator = false;
-    let roomMaxParticipants = 0;
-    let joinHostTimeoutTimer = null;
     
     let gameState = {
         isStarted: false,
@@ -488,193 +361,51 @@
         });
     };
 
-    document.getElementById('btn-mode-create').onclick = () => {
-        document.getElementById('mode-select-panel').style.display = 'none';
-        document.getElementById('create-room-panel').style.display = 'block';
-    };
-    document.getElementById('btn-mode-join').onclick = () => {
-        document.getElementById('mode-select-panel').style.display = 'none';
-        document.getElementById('join-room-panel').style.display = 'block';
-    };
-    document.getElementById('btn-back-from-create').onclick = () => resetToModeSelect();
-    document.getElementById('btn-back-from-join').onclick = () => resetToModeSelect();
-
-    function resetToModeSelect() {
-        if (joinHostTimeoutTimer) { clearTimeout(joinHostTimeoutTimer); joinHostTimeoutTimer = null; }
-        document.getElementById('lobby-panel').classList.remove('active');
-        document.getElementById('login-panel').style.display = '';
-        document.getElementById('create-room-panel').style.display = 'none';
-        document.getElementById('join-room-panel').style.display = 'none';
-        document.getElementById('mode-select-panel').style.display = 'block';
-        document.getElementById('btn-create-room').disabled = false;
-        document.getElementById('btn-join-room').disabled = false;
-        document.getElementById('status-msg').textContent = '情報を入力して接続してください。';
-        connections = {};
-        sortedPlayers = [];
-    }
-
-    document.getElementById('btn-create-room').onclick = () => {
-        const name = document.getElementById('inp-create-name').value.trim();
-        const word = document.getElementById('inp-create-room').value.trim().normalize('NFC');
-        const countStr = document.getElementById('inp-create-count').value.trim();
-        if(!name || !word || !countStr) { customAlert("すべての項目を入力してください。"); return; }
+    document.getElementById('btn-connect-new').onclick = () => {
+        const word = document.getElementById('inp-room').value.trim();
+        const name = document.getElementById('inp-name').value.trim();
+        if(!word || !name) { customAlert("ニックネームと合言葉を入力してください。"); return; }
         if(!isHiraganaOnly(word)) { customAlert("合言葉はひらがなのみで入力してください。"); return; }
-        const count = parseInt(countStr, 10);
-        if(isNaN(count) || count < 2 || count > 10) { customAlert("参加人数は2〜10の数字で入力してください。"); return; }
-
+        
         myName = name;
         myRoomWord = word;
         baseRoomWord = btoa(encodeURIComponent(word)).replace(/=/g, "");
-        roomMaxParticipants = count;
-        isRoomCreator = true;
-        console.log('[GameRoom] 作成: 入力された合言葉=', JSON.stringify(word), ' → エンコード後=', baseRoomWord);
-        document.getElementById('btn-create-room').disabled = true;
-        document.getElementById('status-msg').textContent = "部屋を作成しています...";
-        tryCreateRoom();
+        document.getElementById('btn-connect-new').disabled = true;
+        tryConnectAsIndex(0);
     };
 
-    document.getElementById('btn-join-room').onclick = () => {
-        const name = document.getElementById('inp-join-name').value.trim();
-        const word = document.getElementById('inp-join-room').value.trim().normalize('NFC');
-        if(!name || !word) { customAlert("ニックネームと合言葉を入力してください。"); return; }
-        if(!isHiraganaOnly(word)) { customAlert("合言葉はひらがなのみで入力してください。"); return; }
-
-        myName = name;
-        myRoomWord = word;
-        baseRoomWord = btoa(encodeURIComponent(word)).replace(/=/g, "");
-        isRoomCreator = false;
-        console.log('[GameRoom] 参加: 入力された合言葉=', JSON.stringify(word), ' → エンコード後=', baseRoomWord);
-        document.getElementById('btn-join-room').disabled = true;
-        document.getElementById('status-msg').textContent = "部屋を探しています...";
-        tryJoinRoom(1);
-    };
-
-    function enterLobby() {
-        document.getElementById('login-panel').style.display = 'none';
-        document.getElementById('lobby-panel').classList.add('active');
-        document.getElementById('lobby-room-word').textContent = `合言葉: ${myRoomWord}`;
-        document.getElementById('status-msg').textContent = `部屋に接続しました。全員が揃ったら開始してください。`;
-        rebuildPlayerList();
-    }
-
-    function tryCreateRoom() {
+    function tryConnectAsIndex(index) {
         if(peer) peer.destroy();
-        console.log('[GameRoom] ホスト作成: baseRoomWord=', baseRoomWord, ' peerId=', `${baseRoomWord}-0`);
-        peer = new Peer(`${baseRoomWord}-0`, { serialization: 'json', config: PEER_ICE_CONFIG });
+        peer = new Peer(`${baseRoomWord}-${index}`, { serialization: 'json' });
 
         peer.on('open', (id) => {
-            console.log('[GameRoom] ホストpeer接続完了 id=', id);
             myId = id;
-            enterLobby();
-        });
-        peer.on('connection', (conn) => {
-            console.log('[GameRoom] 参加者から接続要求あり:', conn.peer);
-            setupConnection(conn, false);
-        });
-        peer.on('disconnected', () => console.warn('[GameRoom] ホストpeerがシグナリングサーバーから切断されました'));
-        peer.on('error', (err) => {
-            console.error('[GameRoom] ホストpeerエラー:', err.type, err);
-            if (err.type === 'unavailable-id') {
-                customAlert("この合言葉の部屋はすでに存在します。「ルームに参加する」から入室してください。");
-            } else {
-                customAlert("接続エラーが発生しました。もう一度お試しください。");
-            }
-            if (peer) { peer.destroy(); peer = null; }
-            resetToModeSelect();
-        });
-    }
-
-    function tryJoinRoom(index) {
-        if(peer) peer.destroy();
-        console.log('[GameRoom] 参加試行: baseRoomWord=', baseRoomWord, ' peerId=', `${baseRoomWord}-${index}`, ' host候補=', `${baseRoomWord}-0`);
-        peer = new Peer(`${baseRoomWord}-${index}`, { serialization: 'json', config: PEER_ICE_CONFIG });
-
-        peer.on('open', (id) => {
-            console.log('[GameRoom] 参加者peer接続完了 id=', id);
-            myId = id;
-            let hostConnectedFlag = false;
-            let retryAttempted = false;
-
-            const attemptHostConnection = () => {
-                console.log('[GameRoom] ホストへ接続試行:', `${baseRoomWord}-0`);
-                const hostConn = peer.connect(`${baseRoomWord}-0`);
-                setupConnection(hostConn, true);
-                hostConn.on('open', () => {
-                    console.log('[GameRoom] ホストへの接続が確立しました');
-                    hostConnectedFlag = true;
-                    if (joinHostTimeoutTimer) { clearTimeout(joinHostTimeoutTimer); joinHostTimeoutTimer = null; }
-                    enterLobby();
-                });
-                hostConn.on('error', (e) => console.error('[GameRoom] ホスト接続エラー:', e));
-                hostConn.on('close', () => console.warn('[GameRoom] ホスト接続がクローズされました'));
-            };
-            attemptHostConnection();
-
-            for (let i = 1; i < index; i++) {
+            document.getElementById('login-panel').style.display = 'none';
+            document.getElementById('lobby-panel').classList.add('active');
+            document.getElementById('lobby-room-word').textContent = `合言葉: ${myRoomWord}`;
+            document.getElementById('status-msg').textContent = `部屋に接続しました。全員が揃ったら開始してください。`;
+            rebuildPlayerList();
+            for (let i = 0; i < index; i++) {
                 setupConnection(peer.connect(`${baseRoomWord}-${i}`), true);
             }
-
-            // ホストへの接続が一定時間内に確立しない場合の処理。
-            // 回線状況（特に無料TURNリレー経由の接続確立に時間がかかるケース）を考慮し、
-            // すぐに「見つかりませんでした」とはせず、一度だけ自動再試行してから最終判定する。
-            const waitForHost = (timeoutMs) => {
-                joinHostTimeoutTimer = setTimeout(() => {
-                    if (hostConnectedFlag) return;
-                    if (!retryAttempted) {
-                        retryAttempted = true;
-                        document.getElementById('status-msg').textContent = "部屋を探しています...(接続を再試行中)";
-                        attemptHostConnection();
-                        waitForHost(7000);
-                    } else {
-                        customAlert("部屋が見つかりませんでした。合言葉をご確認のうえ、もう一度お試しください。\n※電波状況や回線が不安定だと接続に失敗することがあります。Wi-Fiに接続した状態でも改善しない場合は、合言葉の入力（ひらがな）が完全に一致しているかもご確認ください。");
-                        if (peer) { peer.destroy(); peer = null; }
-                        resetToModeSelect();
-                    }
-                }, timeoutMs);
-            };
-            waitForHost(8000);
         });
         peer.on('connection', (conn) => {
             setupConnection(conn, false);
         });
         peer.on('error', (err) => {
-            console.error('[GameRoom] 参加者peerエラー:', err.type, err);
-            if (err.type === 'unavailable-id') {
-                tryJoinRoom(index + 1);
-            } else {
-                if (joinHostTimeoutTimer) { clearTimeout(joinHostTimeoutTimer); joinHostTimeoutTimer = null; }
-                customAlert("接続エラーが発生しました。もう一度お試しください。");
-                if (peer) { peer.destroy(); peer = null; }
-                resetToModeSelect();
-            }
+            if (err.type === 'unavailable-id') { tryConnectAsIndex(index + 1); }
         });
     }
 
     function setupConnection(conn, initiatedByMe) {
         conn.on('open', () => {
-            if (isRoomCreator && !gameState.isStarted) {
-                const currentTotal = Object.keys(connections).length + 1;
-                if (currentTotal >= roomMaxParticipants) {
-                    conn.send({ type: 'ROOM_FULL', max: roomMaxParticipants });
-                    setTimeout(() => { if (conn.open) conn.close(); }, 300);
-                    return;
-                }
-            }
             connections[conn.peer] = { conn: conn, name: "接続中...", accId: "" };
-            conn.send({ type: 'PROFILE_EXCHANGE', name: myName, accId: myAccountId, maxParticipants: isRoomCreator ? roomMaxParticipants : undefined });
+            conn.send({ type: 'PROFILE_EXCHANGE', name: myName, accId: myAccountId });
         });
         conn.on('data', (data) => {
-            if (data.type === 'ROOM_FULL') {
-                if (joinHostTimeoutTimer) { clearTimeout(joinHostTimeoutTimer); joinHostTimeoutTimer = null; }
-                customAlert(`この部屋はすでに満員です。(定員 ${data.max} 人)`);
-                if (peer) { peer.destroy(); peer = null; }
-                resetToModeSelect();
-                return;
-            }
             if (data.type === 'PROFILE_EXCHANGE') {
                 connections[conn.peer].name = data.name;
                 connections[conn.peer].accId = data.accId;
-                if (data.maxParticipants) { roomMaxParticipants = data.maxParticipants; }
                 rebuildPlayerList();
                 if(gameState.isStarted && sortedPlayers[0]?.id === myId) {
                     broadcast({ type: 'SYNC_GAME', state: gameState });
@@ -713,24 +444,8 @@
         const lobbyCountLabel = document.getElementById('lobby-wait-count');
         const lobbyListWrapper = document.getElementById('lobby-wait-list');
         if (lobbyCountLabel && lobbyListWrapper) {
-            const maxLabel = roomMaxParticipants > 0 ? ` / ${roomMaxParticipants}` : '';
-            lobbyCountLabel.textContent = `現在 ${sortedPlayers.length}${maxLabel} 人が参加中`;
+            lobbyCountLabel.textContent = `現在 ${sortedPlayers.length} 人が待機中`;
             lobbyListWrapper.innerHTML = sortedPlayers.map(p => `<span class="badge" style="background:${p.id === myId ? 'var(--accent-color)' : '#fff'}; color:#000;">${p.name}${p.id === myId ? '(あなた)' : ''}</span>`).join(' ');
-        }
-
-        const isRoomFull = roomMaxParticipants > 0 && sortedPlayers.length >= roomMaxParticipants;
-        ['btn-start-uno', 'btn-start-draw', 'btn-start-chinchiro'].forEach(id => {
-            const btn = document.getElementById(id);
-            if (btn) btn.disabled = !isRoomFull;
-        });
-        const lobbyFillHint = document.getElementById('lobby-fill-hint');
-        if (lobbyFillHint) {
-            if (roomMaxParticipants > 0 && !isRoomFull) {
-                lobbyFillHint.style.display = 'block';
-                lobbyFillHint.textContent = `あと${roomMaxParticipants - sortedPlayers.length}人参加すると開始できます`;
-            } else {
-                lobbyFillHint.style.display = 'none';
-            }
         }
 
         const wrapper = document.getElementById('member-list-wrapper');
