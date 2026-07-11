@@ -260,6 +260,8 @@ GameRegistry.chinchiro = {
         if (drawBoard) drawBoard.classList.remove('active');
         const drawResult = document.getElementById('draw-result-area');
         if (drawResult) drawResult.classList.remove('active');
+        const chinchigutiBoard = document.getElementById('chinchiguti-board-area');
+        if (chinchigutiBoard) chinchigutiBoard.classList.remove('active');
         document.getElementById('chinchiro-board-area').classList.add('active');
 
         const activePlayer = getActivePlayer();

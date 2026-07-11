@@ -1,484 +1,348 @@
-/**
- * チンチ口（chinchiguti）修正・UI刷新版モジュール実装
- * 
- * 【変更点】
- * 1. スマホ最適化 (Mobile-friendly):
- *    - ボタンに `touch-action: manipulation;` を付与し、ダブルタップズームや誤選択を防止。
- *    - サイコロコンテナを `flex-wrap: wrap; justify-content: center;` にし、画面幅が狭いスマホでも折り返して綺麗に収まる設計に。
- *    - 文字サイズや余白に `rem` や `vw/vh` を意識した相対的デザインを取り入れ、タップしやすいターゲットサイズ（最小44px）を確保。
- * 2. PC向けプレミアムデザイン (Desktop Polish):
- *    - 漆黒・ゴールド・サイバー感をベースにしたグラデーション背景、ネオン調のボーダーシャドウ、洗練されたフォント配置。
- *    - スコアボードを「カード型」にビジュアル化し、現在の手番プレイヤーを滑らかなネオンシャドウで強調。
- *    - サイコロ（.chinchiro-die）に洗練された3Dシャドウ、滑らかな回転アニメーションを追加。
- */
+// GameRegistryにチンチ口の機能と表示パーツをすべて登録
+// ルール: 毎ターン固定数のサイコロを振り、全部「1」の目が出たら即優勝。
+//        1以外が混ざっていたら、サイコロの数はそのまま次の人に交代。
 
-// --- 拡張版 CSS スタイル ---
-const chinchigutiStyles = `
-/* 共通コンテナ */
-.chinchiguti-container {
-    font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', sans-serif;
-    color: #e0e6ed;
-    width: 100%;
-    max-width: 800px;
-    margin: 0 auto;
-}
-
-/* カスタム設定ボックス */
-.chinchiguti-custom-box {
-    background: linear-gradient(135deg, rgba(30, 30, 40, 0.8), rgba(20, 20, 25, 0.9));
-    border: 1px solid rgba(255, 215, 0, 0.2);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.05);
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 16px;
-}
-.chinchiguti-custom-title {
-    font-size: 14px;
-    font-weight: 700;
-    color: #ffd700;
-    margin-bottom: 10px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-.chinchiguti-select {
-    background: #15151e;
-    color: #ffffff;
-    border: 1px solid #ffd700;
-    padding: 8px 12px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 14px;
-    outline: none;
-    transition: all 0.2s;
-    -webkit-appearance: none;
-    appearance: none;
-}
-.chinchiguti-select:focus {
-    box-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
-}
-
-/* スコアボード */
-.chinchiguti-board {
-    background: rgba(15, 15, 25, 0.7);
-    border-radius: 12px;
-    padding: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    box-shadow: inset 0 0 20px rgba(0,0,0,0.6);
-}
-.chinchiguti-row {
-    display: flex;
-    align-items: center;
-    padding: 10px 12px;
-    margin-bottom: 6px;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid transparent;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-}
-.chinchiguti-row.active-turn {
-    background: linear-gradient(90deg, rgba(255, 215, 0, 0.15), rgba(255, 215, 0, 0.02));
-    border-color: rgba(255, 215, 0, 0.4);
-    box-shadow: 0 0 15px rgba(255, 215, 0, 0.1);
-}
-.chinchiguti-row.finished {
-    background: rgba(76, 175, 80, 0.05);
-    border-color: rgba(76, 175, 80, 0.2);
-    opacity: 0.8;
-}
-
-/* メインステージ */
-.chinchiguti-stage {
-    background: linear-gradient(180deg, rgba(25, 25, 35, 0.85), rgba(15, 15, 20, 0.95));
-    border-radius: 16px;
-    padding: 24px 16px;
-    text-align: center;
-    border: 1px solid rgba(255,255,255,0.06);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    margin-top: 16px;
-}
-
-/* 洗練されたサイコロデザイン */
-.chinchiro-die {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 54px;
-    height: 54px;
-    background: #ffffff;
-    color: #111111;
-    font-size: 26px;
-    font-weight: 800;
-    border-radius: 12px;
-    box-shadow: 0 4px 0 #cccccc, 0 8px 15px rgba(0,0,0,0.3);
-    user-select: none;
-    -webkit-user-select: none;
-    touch-action: none;
-    transition: transform 0.1s;
-}
-@media (max-width: 480px) {
-    .chinchiro-die {
-        width: 46px;
-        height: 46px;
-        font-size: 22px;
-        border-radius: 10px;
-    }
-}
-.chinchiro-die.rolling {
-    animation: chinchiguti-shake 0.15s infinite alternate;
-    background: #f0f3f8;
-    box-shadow: 0 2px 0 #bbbbbb, 0 4px 8px rgba(0,0,0,0.2);
-}
-@keyframes chinchiguti-shake {
-    0% { transform: translate(2px, 1px) rotate(0deg); }
-    100% { transform: translate(-1px, -2px) rotate(-5deg); }
-}
-
-/* スマホでも押しやすい特大アクションボタン */
-.chinchiguti-btn-primary {
-    background: linear-gradient(135deg, #ffd700, #ffa500);
-    color: #000000;
-    border: none;
-    padding: 14px 36px;
-    font-size: 16px;
-    font-weight: 800;
-    border-radius: 30px;
-    cursor: pointer;
-    box-shadow: 0 5px 15px rgba(255, 165, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.4);
-    transition: all 0.2s ease;
-    touch-action: manipulation; /* スマホのタップ遅延防止 */
-    -webkit-tap-highlight-color: transparent;
-    display: inline-block;
-}
-.chinchiguti-btn-primary:active {
-    transform: translateY(2px);
-    box-shadow: 0 2px 6px rgba(255, 165, 0, 0.4);
-}
-`;
-
-// --- HTML テンプレート ---
-const chinchigutiHtmlTemplate = `
-<div class="chinchiguti-container">
-    <!-- 1. 設定エリア -->
-    <div id="chinchiguti-custom-setup" class="chinchiguti-custom-box" style="display: none;">
-        <div class="chinchiguti-custom-title">🎲 チンチ口 カスタム設定 (ホストのみ)</div>
-        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-            <label for="chinchiguti-dice-count-select" style="font-size: 13px; color: #b0b8c4;">初期サイコロ数:</label>
-            <div style="position: relative;">
-                <select id="chinchiguti-dice-count-select" class="chinchiguti-select">
-                    <option value="3">3個 (通常)</option>
-                    <option value="4">4個</option>
-                    <option value="5">5個</option>
-                    <option value="6">6個</option>
-                    <option value="8">8個</option>
-                    <option value="10">10個</option>
-                </select>
-            </div>
-        </div>
-    </div>
-
-    <!-- 2. メイン画面 -->
-    <div id="chinchiguti-game-screen" style="display: none;">
-        <!-- スコアボードコンテナ -->
-        <div id="chinchiguti-scoreboard" class="chinchiguti-board"></div>
-
-        <!-- プレイアリーナ -->
-        <div class="chinchiguti-stage">
-            <!-- 現在のステータス案内 -->
-            <div id="chinchiguti-current-turn-info" style="font-size: 15px; font-weight: bold; color: #ffd700; margin-bottom: 16px; min-height: 22px;"></div>
-            
-            <!-- サイコロ配置エリア (レスポンシブ対応) -->
-            <div id="chinchiguti-dice-container" style="display: flex; justify-content: center; align-items: center; gap: 12px; margin: 26px 0; min-height: 60px; flex-wrap: wrap;"></div>
-
-            <!-- 操作インタラクション -->
-            <div id="chinchiguti-action-container" style="margin-top: 20px;">
-                <button id="chinchiguti-roll-btn" class="chinchiguti-btn-primary">🎲 サイコロを振る</button>
-            </div>
-        </div>
-
-        <!-- 終了リザルト画面 -->
-        <div id="chinchiguti-result-screen" style="display: none; margin-top: 20px; background: linear-gradient(135deg, rgba(255,215,0,0.12), rgba(0,0,0,0.4)); border: 1px solid #ffd700; border-radius: 14px; padding: 20px; text-align: center; box-shadow: 0 8px 25px rgba(0,0,0,0.5);">
-            <h3 id="chinchiguti-result-title" style="color: #ffd700; margin: 0 0 8px 0; font-size: 20px; font-weight: bold;">🎉 全てのサイコロが1の目になりました！</h3>
-            <p style="font-size: 13px; color: #a0a8b5; margin-bottom: 16px;">【最終ゲーム順位】</p>
-            <div id="chinchiguti-final-ranking" style="width: 100%; display: flex; flex-direction: column; gap: 8px;"></div>
-        </div>
-    </div>
-</div>
-`;
-
-// スタイルを自動でドキュメントにインジェクトするヘルパー
+// このゲーム専用のスタイルを一度だけ<head>に注入する
+// （※ .chinchiro-die 等、他ゲームと共有するクラス名は絶対に使わない。
+//    クラス名が被ると本家チンチロの表示まで壊れてしまうため、
+//    ここではすべて .chinchiguti- プレフィックスで独自定義する）
 if (typeof document !== 'undefined' && !document.getElementById('chinchiguti-custom-styles')) {
     const styleEl = document.createElement('style');
     styleEl.id = 'chinchiguti-custom-styles';
-    styleEl.innerHTML = chinchigutiStyles;
+    styleEl.innerHTML = `
+        .chinchiguti-board { display: none; flex-direction: column; gap: 10px; min-width: 0; }
+        .chinchiguti-board.active { display: flex; }
+
+        .chinchiguti-config-box { display:flex; align-items:center; gap:10px; justify-content:center; flex-wrap:wrap; background:#0b0d16; border-radius:8px; padding:8px 10px; font-size:0.82rem; }
+        .chinchiguti-config-box select { background:#15151e; color:#fff; border:1px solid var(--accent-color); border-radius:6px; padding:4px 8px; font-size:0.82rem; }
+
+        .chinchiguti-stage { background: rgba(0,0,0,0.2); border-radius: 12px; padding: 22px 10px; }
+        .chinchiguti-dice-container { display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:10px; min-height:56px; }
+        .chinchiguti-die { width:48px; height:48px; background:#fdfdfd; color:#111; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:1.8rem; box-shadow:0 4px 8px rgba(0,0,0,0.6); border:3px solid var(--border-color); transition:border-color .15s ease, box-shadow .15s ease; }
+        .chinchiguti-die.rolling { border-color: var(--accent-color); animation: chinchiguti-shake .15s infinite alternate; }
+        .chinchiguti-die.win { border-color:#ffd54f; box-shadow:0 0 14px rgba(255,213,79,0.9); }
+        @keyframes chinchiguti-shake { 0%{ transform:translate(1px,1px) rotate(-4deg); } 100%{ transform:translate(-1px,-1px) rotate(4deg); } }
+
+        .chinchiguti-scoreboard { display:flex; flex-direction:column; gap:6px; }
+        .chinchiguti-score-row { display:flex; justify-content:space-between; align-items:center; background:#0b0d16; border-radius:8px; padding:8px 10px; border-left:4px solid #555; font-size:0.8rem; gap:8px; flex-wrap:wrap; }
+        .chinchiguti-score-row.active-turn { border-left-color:#ffaa00; background: rgba(255,170,0,0.1); }
+        .chinchiguti-score-row.finished { border-left-color: var(--success-color); }
+        .chinchiguti-rank-num { font-weight:900; color:#ffd54f; min-width:30px; }
+    `;
     document.head.appendChild(styleEl);
 }
 
-// --- JavaScript モジュール実装 ---
-const ChinchigutiModule = {
-    id: "chinchiguti",
-    name: "チンチ口",
-    
-    createInitialState: function(players) {
-        const state = {
-            isStarted: false,
-            isEnded: false,
-            config: {
-                initialDiceCount: 3
-            },
-            playerData: {},
-            turnOrder: [],
-            currentTurnIndex: 0,
-            lastRoll: [],
-            rolling: false
-        };
-        
-        players.forEach(p => {
-            state.playerData[p.id] = {
-                id: p.id,
-                name: p.name,
-                diceCount: 3,
-                active: true,
-                finishTurn: null,
-                totalRolls: 0
-            };
-        });
-        
-        return state;
+GameRegistry.chinchiguti = {
+    template: `
+        <div class="chinchiguti-board" id="chinchiguti-board-area">
+            <div class="spectator-banner" id="chinchiguti-spectator-banner" style="display:none;">👀 観戦中：このゲームが終わるまでお待ちください</div>
+
+            <div class="winner-overlay" id="chinchiguti-winner-overlay" style="display:none;">
+                <div class="winner-trophy">🏆</div>
+                <div class="winner-name" id="chinchiguti-winner-name">優勝！</div>
+                <div class="winner-card-info" id="chinchiguti-winner-hand">役: -</div>
+                <div id="chinchiguti-final-ranking" style="margin-top:14px; width:100%; display:flex; flex-direction:column; gap:6px;"></div>
+                <button class="btn btn-success" style="margin-top:14px;" onclick="GameRegistry.chinchiguti.hostGame()">もう一度プレイする</button>
+                <button class="btn" style="margin-top:6px;" onclick="sendReturnToLobby()">ロビーへ戻る</button>
+            </div>
+
+            <div id="chinchiguti-playing-area">
+                <div class="direction-indicator" id="chinchiguti-turn-indicator">現在の番: -</div>
+
+                <div class="chinchiguti-config-box" id="chinchiguti-config-box" style="display:none;">
+                    <span>🎲 サイコロの数:</span>
+                    <select id="chinchiguti-dice-select" onchange="GameRegistry.chinchiguti.changeDiceCount(this.value)">
+                        <option value="3">3個 (通常)</option>
+                        <option value="4">4個</option>
+                        <option value="5">5個</option>
+                        <option value="6">6個</option>
+                        <option value="8">8個</option>
+                        <option value="10">10個</option>
+                    </select>
+                </div>
+
+                <div class="chinchiguti-stage">
+                    <div class="chinchiguti-dice-container" id="chinchiguti-dice-container"></div>
+                </div>
+                <div style="text-align:center; font-size:0.85rem; color:var(--accent-color); font-weight:bold; min-height:1.2em;" id="chinchiguti-current-hand-label"></div>
+
+                <div class="action-container">
+                    <button class="btn btn-success" id="btn-chinchiguti-roll" onclick="GameRegistry.chinchiguti.rollDice()" disabled>🎲 サイコロを振る</button>
+                </div>
+
+                <div class="hand-section" style="margin-top:10px;">
+                    <div class="hand-title"><span>プレイヤー状況</span></div>
+                    <div class="chinchiguti-scoreboard" id="chinchiguti-scoreboard"></div>
+                </div>
+
+                <details class="chinchiro-rules">
+                    <summary>📖 チンチ口のルールを見る</summary>
+                    <div class="rules-body">
+                        <h4>遊び方</h4>
+                        <ol>
+                            <li>開始前に、ホストがサイコロの数（3〜10個）を選べます。</li>
+                            <li>順番に一人ずつ、その数のサイコロを一斉に振ります。</li>
+                            <li>振ったサイコロが<strong>全部「1」の目</strong>になったら、その場でゲーム終了！その人の優勝です。</li>
+                            <li>1以外が混ざっていた場合は、サイコロの数は減らさずそのまま次の人に交代します。</li>
+                            <li>誰かが「オール1」を出すまで、順番に振り続けます。</li>
+                        </ol>
+                    </div>
+                </details>
+            </div>
+        </div>
+    `,
+
+    isRolling: false,
+    rollAnimTimer: null,
+    rollingInterval: null,
+
+    init: function() {
+        this.isRolling = false;
+        this.rollAnimTimer = null;
+        this.rollingInterval = null;
     },
 
-    syncUI: function(gameState, myId, isHost, socket) {
-        const customSetupEl = document.getElementById('chinchiguti-custom-setup');
-        const gameScreenEl = document.getElementById('chinchiguti-game-screen');
-        const diceContainer = document.getElementById('chinchiguti-dice-container');
-        const rollBtn = document.getElementById('chinchiguti-roll-btn');
-        const turnInfoEl = document.getElementById('chinchiguti-current-turn-info');
-        const resultScreenEl = document.getElementById('chinchiguti-result-screen');
-        const resultTitleEl = document.getElementById('chinchiguti-result-title');
-        const selectEl = document.getElementById('chinchiguti-dice-count-select');
-
-        if (!gameScreenEl) return;
-
-        // 1. 設定画面同期
-        if (!gameState.isStarted) {
-            customSetupEl.style.display = 'block';
-            if (selectEl) {
-                selectEl.disabled = !isHost;
-                if (isHost && !selectEl.dataset.hasListener) {
-                    selectEl.dataset.hasListener = "true";
-                    selectEl.addEventListener('change', (e) => {
-                        socket.emit('game-action', {
-                            type: 'change-config',
-                            initialDiceCount: parseInt(e.target.value, 10)
-                        });
-                    });
-                }
-                selectEl.value = gameState.config.initialDiceCount;
-            }
-            gameScreenEl.style.display = 'none';
-            return;
-        } else {
-            customSetupEl.style.display = 'none';
-            gameScreenEl.style.display = 'block';
+    // 他プレイヤーへ「振っている最中」の演出を伝えるリアルタイムイベント
+    handleData: function(data) {
+        if (data.type === 'CHINCHIGUTI_ROLLING') {
+            const n = data.diceCount || (gameState.chinchigutiConfig ? gameState.chinchigutiConfig.diceCount : 3);
+            this.playRollingAnimation(n);
         }
+    },
 
-        // 2. 手番ステータス同期
-        const currentTurnPlayerId = gameState.turnOrder[gameState.currentTurnIndex];
-        const isMyTurn = (currentTurnPlayerId === myId) && !gameState.isEnded && !gameState.rolling;
+    diceFace: function(n) {
+        const faces = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+        return faces[Math.max(1, Math.min(6, n)) - 1];
+    },
 
-        if (gameState.isEnded) {
-            turnInfoEl.innerHTML = "<span style='color: #ff4d4d;'>🏁 GAME OVER</span>";
-            rollBtn.style.display = 'none';
-            resultScreenEl.style.display = 'block';
-            
-            if (gameState.config.initialDiceCount === 3) {
-                resultTitleEl.innerText = "🎉 全て1の目「ピンゾロ」達成でゲーム終了！";
-            } else {
-                resultTitleEl.innerText = `🎉 全て1の目（${gameState.config.initialDiceCount}個）達成でゲーム終了！`;
-            }
+    hostGame: function() {
+        if (sortedPlayers.length < 2) { customAlert("2人以上のプレイヤーが必要です。"); return; }
+        gameState.isStarted = true; gameState.gameType = 'chinchiguti';
+        gameState.roster = sortedPlayers.map(p => ({ accId: p.accId, name: p.name }));
+        gameState.turnIndex = Math.floor(Math.random() * gameState.roster.length);
+        // 前回選んだサイコロ数があれば引き継ぐ。なければ3個から
+        const prevCount = (gameState.chinchigutiConfig && gameState.chinchigutiConfig.diceCount) || 3;
+        gameState.chinchigutiConfig = { diceCount: prevCount };
+        gameState.chinchigutiStats = {};
+        gameState.roster.forEach(p => {
+            gameState.chinchigutiStats[p.accId] = { totalRolls: 0 };
+        });
+        gameState.lastRoll = [];
+        gameState.lastRoller = null;
+        gameState.isEnded = false; gameState.winner = null; gameState.winnerHandText = '';
+        this.isRolling = false;
 
-            this.renderFinalRanking(gameState);
-        } else {
-            resultScreenEl.style.display = 'none';
-            rollBtn.style.display = isMyTurn ? 'inline-block' : 'none';
-            
-            const currentPlayer = gameState.playerData[currentTurnPlayerId];
-            if (currentPlayer) {
-                turnInfoEl.innerHTML = isMyTurn 
-                    ? "✨ <span style='color: #fff; font-weight: 800;'>あなたの番です！</span> ボタンをタップして振ってください。" 
-                    : `⏳ <span style='color: #aaa;'>${currentPlayer.name} さんがロール中...</span>`;
-            }
-        }
+        broadcast({ type: 'SYNC_GAME', state: gameState });
+        syncGameUI();
+    },
 
-        // 3. スコアボード描画
-        this.renderScoreboard(gameState, currentTurnPlayerId);
+    // ゲーム開始前（誰もまだ振っていない間）だけ、サイコロの数を変更できる
+    changeDiceCount: function(value) {
+        if (!gameState.chinchigutiConfig) return;
+        const anyRolled = Object.values(gameState.chinchigutiStats || {}).some(s => s.totalRolls > 0);
+        if (anyRolled || gameState.isEnded) return;
+        const n = parseInt(value, 10);
+        if (!n || n === gameState.chinchigutiConfig.diceCount) return;
+        gameState.chinchigutiConfig.diceCount = n;
+        broadcast({ type: 'SYNC_GAME', state: gameState });
+        syncGameUI();
+    },
 
-        // 4. サイコロ表示 (非アニメーション時)
-        if (!gameState.rolling) {
-            if (window.chinchigutiRollingInterval) {
-                clearInterval(window.chinchigutiRollingInterval);
-                window.chinchigutiRollingInterval = null;
-            }
-            diceContainer.innerHTML = '';
-            if (gameState.lastRoll && gameState.lastRoll.length > 0) {
-                gameState.lastRoll.forEach(val => {
-                    const die = document.createElement('div');
-                    die.className = 'chinchiro-die';
-                    die.innerText = val;
-                    if (val === 1) {
-                        die.style.color = '#ff3b30';
-                        die.style.textShadow = '0 0 10px rgba(255, 59, 48, 0.3)';
-                    }
-                    diceContainer.appendChild(die);
-                });
-            } else {
-                const activePlayer = gameState.playerData[currentTurnPlayerId];
-                const count = activePlayer ? activePlayer.diceCount : gameState.config.initialDiceCount;
-                for (let i = 0; i < count; i++) {
-                    const die = document.createElement('div');
-                    die.className = 'chinchiro-die';
-                    die.style.opacity = '0.25';
-                    die.style.background = 'rgba(255,255,255,0.1)';
-                    die.style.color = '#fff';
-                    die.style.boxShadow = 'none';
-                    die.innerText = '●';
-                    diceContainer.appendChild(die);
-                }
-            }
-        }
+    rollDice: function() {
+        const activePlayer = getActivePlayer();
+        if (!activePlayer || activePlayer.accId !== myAccountId) return;
+        if (this.isRolling || gameState.isEnded) return;
 
-        // 5. ボタンイベントバインド (スマホの応答性を考慮し touchend / click 両対応または標準最適化)
-        if (!rollBtn.dataset.hasListener) {
-            rollBtn.dataset.hasListener = "true";
-            
-            const handleRollAction = (e) => {
-                e.preventDefault(); // ダブルタップなどの不要な挙動を抑止
-                if (gameState.rolling) return;
-                
-                const currentPlayerDiceCount = gameState.playerData[gameState.turnOrder[gameState.currentTurnIndex]].diceCount;
-                this.playRollingAnimation(currentPlayerDiceCount);
-                
-                socket.emit('game-action', { type: 'roll' });
-            };
+        this.isRolling = true;
+        const rollBtn = document.getElementById('btn-chinchiguti-roll');
+        if (rollBtn) rollBtn.disabled = true;
 
-            // スマホ環境なら touchstart で最速発火、なければ click
-            if ('ontouchstart' in window) {
-                rollBtn.addEventListener('touchstart', handleRollAction, { passive: false });
-            } else {
-                rollBtn.addEventListener('click', handleRollAction);
-            }
-        }
+        const diceCount = gameState.chinchigutiConfig.diceCount;
+        broadcast({ type: 'CHINCHIGUTI_ROLLING', diceCount: diceCount });
+        this.playRollingAnimation(diceCount);
+
+        if (this.rollAnimTimer) clearTimeout(this.rollAnimTimer);
+        this.rollAnimTimer = setTimeout(() => { this.finalizeRoll(); }, 900);
     },
 
     playRollingAnimation: function(diceCount) {
-        const diceContainer = document.getElementById('chinchiguti-dice-container');
-        if (!diceContainer) return;
+        const container = document.getElementById('chinchiguti-dice-container');
+        if (!container) return;
 
-        if (window.chinchigutiRollingInterval) {
-            clearInterval(window.chinchigutiRollingInterval);
-        }
-
-        diceContainer.innerHTML = '';
-        const diceElements = [];
-
+        container.innerHTML = '';
+        const dieEls = [];
         for (let i = 0; i < diceCount; i++) {
-            const die = document.createElement('div');
-            die.className = 'chinchiro-die rolling';
-            die.innerText = Math.floor(Math.random() * 6) + 1;
-            diceContainer.appendChild(die);
-            diceElements.push(die);
+            const el = document.createElement('div');
+            el.className = 'chinchiguti-die rolling';
+            el.textContent = this.diceFace(1 + Math.floor(Math.random() * 6));
+            container.appendChild(el);
+            dieEls.push(el);
         }
 
-        window.chinchigutiRollingInterval = setInterval(() => {
-            diceElements.forEach(die => {
-                die.innerText = Math.floor(Math.random() * 6) + 1;
-            });
-        }, 80);
+        if (this.rollingInterval) clearInterval(this.rollingInterval);
+        this.rollingInterval = setInterval(() => {
+            dieEls.forEach(el => { el.textContent = this.diceFace(1 + Math.floor(Math.random() * 6)); });
+        }, 90);
+
+        setTimeout(() => {
+            if (this.rollingInterval) { clearInterval(this.rollingInterval); this.rollingInterval = null; }
+            dieEls.forEach(el => el.classList.remove('rolling'));
+        }, 850);
     },
 
-    renderScoreboard: function(gameState, currentTurnPlayerId) {
-        const scoreboardEl = document.getElementById('chinchiguti-scoreboard');
-        if (!scoreboardEl) return;
+    finalizeRoll: function() {
+        const myStats = gameState.chinchigutiStats[myAccountId];
+        if (!myStats) { this.isRolling = false; return; }
 
-        let html = `
-        <div style="display: flex; font-size: 11px; color: #8892b0; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); font-weight: bold; text-transform: uppercase; letter-spacing: 1px; padding-left: 12px; padding-right: 12px;">
-            <div style="flex: 2;">PLAYER</div>
-            <div style="flex: 1; text-align: center;">DICE LEFT</div>
-            <div style="flex: 2; text-align: right;">STATUS / ROLLS</div>
-        </div>
-        <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 4px;">`;
+        const n = gameState.chinchigutiConfig.diceCount;
+        const dice = Array.from({ length: n }, () => 1 + Math.floor(Math.random() * 6));
+        myStats.totalRolls += 1;
+        gameState.lastRoll = dice;
+        gameState.lastRoller = myAccountId;
 
-        gameState.turnOrder.forEach(pId => {
-            const p = gameState.playerData[pId];
-            const isCurrent = (pId === currentTurnPlayerId && !gameState.isEnded);
-            
-            let rowClass = "chinchiguti-row";
-            if (isCurrent) rowClass += " active-turn";
-            if (!p.active) rowClass += " finished";
+        const isWin = dice.every(d => d === 1);
+        if (isWin) {
+            const me = gameState.roster.find(p => p.accId === myAccountId);
+            gameState.isEnded = true;
+            gameState.winner = me ? me.name : '?';
+            gameState.winnerHandText = `${n}個 オール1（大当たり！）`;
+        } else {
+            gameState.turnIndex = (gameState.turnIndex + 1) % gameState.roster.length;
+        }
 
-            html += `
-            <div class="${rowClass}">
-                <div style="flex: 2; font-size: 14px; font-weight: ${isCurrent ? '700' : '500'}; color: ${isCurrent ? '#ffd700' : '#ffffff'}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                    ${isCurrent ? '⚡ ' : ''}${p.name}
+        this.isRolling = false;
+        broadcast({ type: 'SYNC_GAME', state: gameState });
+        syncGameUI();
+    },
+
+    renderScoreboard: function() {
+        const wrapper = document.getElementById('chinchiguti-scoreboard');
+        if (!wrapper) return;
+        wrapper.innerHTML = "";
+
+        gameState.roster.forEach((p, idx) => {
+            const s = gameState.chinchigutiStats[p.accId] || { totalRolls: 0 };
+            const isTurn = (!gameState.isEnded && idx === gameState.turnIndex);
+            const isWinner = gameState.isEnded && gameState.winner === p.name;
+            const row = document.createElement('div');
+            row.className = `chinchiguti-score-row ${isTurn ? 'active-turn' : ''} ${isWinner ? 'finished' : ''}`;
+
+            row.innerHTML = `
+                <div style="display:flex; align-items:center; gap:8px; min-width:0;">
+                    <span style="font-weight:bold; ${p.accId === myAccountId ? 'color:var(--accent-color);' : ''}">${p.name}${isTurn ? ' 🎲' : ''}${isWinner ? ' 🏆' : ''}</span>
                 </div>
-                <div style="flex: 1; text-align: center; font-size: 15px; font-weight: 800; color: ${p.diceCount === 0 ? '#4caf50' : '#e0e6ed'};">
-                    ${p.diceCount} <span style="font-size: 11px; font-weight: normal; color: #666;">pcs</span>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="color:#999; font-size:0.75rem;">挑戦回数: ${s.totalRolls}回</span>
                 </div>
-                <div style="flex: 2; text-align: right; font-size: 12px;">
-                    ${!p.active 
-                        ? `<span style="background: rgba(76,175,80,0.2); color: #4caf50; padding: 2px 8px; border-radius: 12px; font-weight: bold;">🎉 脱出成功</span>` 
-                        : `<span style="color: #8892b0;">生存中 (${p.totalRolls}回)</span>`}
+            `;
+            wrapper.appendChild(row);
+        });
+    },
+
+    renderFinalRanking: function() {
+        const wrap = document.getElementById('chinchiguti-final-ranking');
+        if (!wrap) return;
+        const ranked = [...gameState.roster].sort((a, b) => {
+            const aIsWinner = a.name === gameState.winner ? 1 : 0;
+            const bIsWinner = b.name === gameState.winner ? 1 : 0;
+            return bIsWinner - aIsWinner;
+        });
+        wrap.innerHTML = ranked.map((p) => {
+            const s = gameState.chinchigutiStats[p.accId] || { totalRolls: 0 };
+            const isWinner = p.name === gameState.winner;
+            return `<div class="chinchiguti-score-row ${isWinner ? 'finished' : ''}">
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <span class="chinchiguti-rank-num">${isWinner ? '🏆優勝' : '参加'}</span>
+                    <span style="font-weight:bold;">${p.name}</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="color:#999; font-size:0.75rem;">挑戦回数: ${s.totalRolls}回</span>
                 </div>
             </div>`;
-        });
-
-        html += '</div>';
-        scoreboardEl.innerHTML = html;
+        }).join('');
     },
 
-    renderFinalRanking: function(gameState) {
-        const rankingEl = document.getElementById('chinchiguti-final-ranking');
-        if (!rankingEl) return;
+    syncUI: function() {
+        document.getElementById('game-title-label').textContent = "チンチ口";
+        const unoBoard = document.getElementById('uno-board-area');
+        if (unoBoard) unoBoard.classList.remove('active');
+        const drawBoard = document.getElementById('draw-board-area');
+        if (drawBoard) drawBoard.classList.remove('active');
+        const drawResult = document.getElementById('draw-result-area');
+        if (drawResult) drawResult.classList.remove('active');
+        const chinchiroBoard = document.getElementById('chinchiro-board-area');
+        if (chinchiroBoard) chinchiroBoard.classList.remove('active');
+        document.getElementById('chinchiguti-board-area').classList.add('active');
 
-        const playersArray = Object.values(gameState.playerData);
-        playersArray.sort((a, b) => {
-            if (!a.active && !b.active) return (a.finishTurn || 999) - (b.finishTurn || 999);
-            if (!a.active) return -1;
-            if (!b.active) return 1;
-            if (a.diceCount !== b.diceCount) return a.diceCount - b.diceCount;
-            return a.totalRolls - b.totalRolls;
-        });
+        const activePlayer = getActivePlayer();
+        const isMyTurn = (activePlayer && activePlayer.accId === myAccountId);
+        const amInRoster = !gameState.roster || !gameState.roster.length || gameState.roster.some(p => p.accId === myAccountId);
+        document.getElementById('chinchiguti-spectator-banner').style.display = (!amInRoster && !gameState.isEnded) ? 'block' : 'none';
 
-        let html = '';
-        playersArray.forEach((p, index) => {
-            const rank = index + 1;
-            let rankColor = '#ffffff';
-            let bgGradient = 'rgba(255,255,255,0.03)';
-            let medal = `第 ${rank} 位`;
-            
-            if (rank === 1) { 
-                rankColor = '#ffd700'; 
-                medal = '🥇 1位 (👑 王様)'; 
-                bgGradient = 'rgba(255,215,0,0.08)';
-            } else if (rank === 2) { 
-                rankColor = '#b4b4b4'; 
-                medal = '🥈 2位'; 
-                bgGradient = 'rgba(180,180,180,0.05)';
-            } else if (rank === 3) { 
-                rankColor = '#cd7f32'; 
-                medal = '🥉 3位'; 
+        const infoBar = document.getElementById('game-info');
+        const diceCount = gameState.chinchigutiConfig ? gameState.chinchigutiConfig.diceCount : 3;
+
+        if (gameState.isEnded) {
+            this.rollAnimTimer && clearTimeout(this.rollAnimTimer);
+            document.getElementById('chinchiguti-winner-overlay').style.display = 'flex';
+            document.getElementById('chinchiguti-playing-area').style.display = 'none';
+            document.getElementById('chinchiguti-winner-name').textContent = `${gameState.winner} 優勝！`;
+            document.getElementById('chinchiguti-winner-hand').textContent = gameState.winnerHandText || '-';
+            this.renderFinalRanking();
+            infoBar.textContent = `🎉 ${gameState.winner}さんが [${gameState.winnerHandText}] で優勝しました！`;
+            return;
+        }
+
+        document.getElementById('chinchiguti-winner-overlay').style.display = 'none';
+        document.getElementById('chinchiguti-playing-area').style.display = 'block';
+
+        document.getElementById('chinchiguti-turn-indicator').textContent =
+            `現在の番: ${activePlayer ? activePlayer.name : '-'} さん (${gameState.turnIndex + 1}人目 / 全${gameState.roster.length}人)`;
+
+        // まだ誰も振っていない間だけ、サイコロ数の設定を表示（全員が変更できる）
+        const anyRolled = Object.values(gameState.chinchigutiStats || {}).some(s => s.totalRolls > 0);
+        const configBox = document.getElementById('chinchiguti-config-box');
+        const selectEl = document.getElementById('chinchiguti-dice-select');
+        if (configBox) configBox.style.display = anyRolled ? 'none' : 'flex';
+        if (selectEl && document.activeElement !== selectEl) selectEl.value = String(diceCount);
+
+        const rollBtn = document.getElementById('btn-chinchiguti-roll');
+        const handLabelEl = document.getElementById('chinchiguti-current-hand-label');
+
+        if (!this.isRolling) {
+            const container = document.getElementById('chinchiguti-dice-container');
+            if (container) {
+                container.innerHTML = '';
+                const diceToShow = (gameState.lastRoll && gameState.lastRoll.length) ? gameState.lastRoll : null;
+                for (let i = 0; i < diceCount; i++) {
+                    const el = document.createElement('div');
+                    el.className = 'chinchiguti-die';
+                    el.textContent = diceToShow ? this.diceFace(diceToShow[i]) : '-';
+                    container.appendChild(el);
+                }
             }
+            const rollerName = gameState.lastRoller ? (gameState.roster.find(p => p.accId === gameState.lastRoller) || {}).name : null;
+            handLabelEl.textContent = (gameState.lastRoll && gameState.lastRoll.length && rollerName)
+                ? `${rollerName}さんの結果: 役なし（オール1ではありませんでした）`
+                : '';
+        }
 
-            html += `
-            <div style="display: flex; justify-content: space-between; align-items: center; background: ${bgGradient}; padding: 12px 16px; border-radius: 10px; border-left: 4px solid ${rankColor}; border-top: 1px solid rgba(255,255,255,0.02); box-shadow: 0 4px 10px rgba(0,0,0,0.2);">
-                <span style="font-weight: 800; color: ${rankColor}; font-size: 14px;">${medal}</span>
-                <span style="font-weight: bold; color: #ffffff; font-size: 14px; flex-grow: 1; margin-left: 20px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${p.name}</span>
-                <span style="font-size: 12px; font-weight: 500;">
-                    ${!p.active ? `<span style="color:#4caf50;">Cleared</span>` : `<span style="color:#ff8c00;">残り ${p.diceCount}個</span>`} <span style="color: #666;">(${p.totalRolls}回)</span>
-                </span>
-            </div>`;
-        });
+        if (isMyTurn && !this.isRolling) {
+            rollBtn.disabled = false;
+            rollBtn.textContent = '🎲 サイコロを振る';
+        } else {
+            rollBtn.disabled = true;
+            rollBtn.textContent = '🎲 サイコロを振る';
+        }
 
-        rankingEl.innerHTML = html;
+        if (!amInRoster) {
+            infoBar.textContent = `⏱️ ${activePlayer ? activePlayer.name : '相手'}のターンです...(観戦中)`;
+        } else if (isMyTurn) {
+            infoBar.textContent = `🎲 あなたの番です！サイコロを${diceCount}個振ってください。全部「1」が出たら優勝です！`;
+        } else {
+            infoBar.textContent = `⏱️ ${activePlayer ? activePlayer.name : '相手'}のターンです...`;
+        }
+
+        this.renderScoreboard();
     }
 };

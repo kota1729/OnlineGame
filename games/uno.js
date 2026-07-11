@@ -516,6 +516,8 @@ GameRegistry.uno = {
         if(resultBoard) resultBoard.classList.remove('active');
         const chinchiroBoard = document.getElementById('chinchiro-board-area');
         if(chinchiroBoard) chinchiroBoard.classList.remove('active');
+        const chinchigutiBoard = document.getElementById('chinchiguti-board-area');
+        if(chinchigutiBoard) chinchigutiBoard.classList.remove('active');
 
         const activePlayer = getActivePlayer();
         const isMyTurn = (activePlayer && activePlayer.accId === myAccountId);

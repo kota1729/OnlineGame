@@ -535,6 +535,8 @@ GameRegistry.shiritori = {
         if(unoBoard) unoBoard.classList.remove('active');
         const chinchiroBoard = document.getElementById('chinchiro-board-area');
         if(chinchiroBoard) chinchiroBoard.classList.remove('active');
+        const chinchigutiBoard = document.getElementById('chinchiguti-board-area');
+        if(chinchigutiBoard) chinchigutiBoard.classList.remove('active');
         
         if (gameState.isEnded) {
             document.getElementById('draw-board-area').classList.remove('active');
