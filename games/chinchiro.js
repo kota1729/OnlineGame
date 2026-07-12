@@ -22,6 +22,7 @@ GameRegistry.chinchiro = {
                         <div class="chinchiro-die" id="chinchiro-die-0">-</div>
                         <div class="chinchiro-die" id="chinchiro-die-1">-</div>
                         <div class="chinchiro-die" id="chinchiro-die-2">-</div>
+                        <div class="chinchiro-pinzoro-flash" id="chinchiro-pinzoro-flash"><span>🔥 ピンゾロ！！ 🔥</span></div>
                     </div>
                 </div>
                 <div style="text-align:center; font-size:0.85rem; color:var(--accent-color); font-weight:bold; min-height:1.2em;" id="chinchiro-current-hand-label"></div>
@@ -78,6 +79,13 @@ GameRegistry.chinchiro = {
     diceFace: function(n) {
         const faces = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
         return faces[Math.max(1, Math.min(6, n)) - 1];
+    },
+
+    // サイコロの目を要素に反映する共通処理(「1」の目だけ赤色にする)
+    applyFace: function(el, n) {
+        if (!el) return;
+        el.textContent = this.diceFace(n);
+        el.classList.toggle('die-one', n === 1);
     },
 
     // 3つのサイコロの目から役を判定する
@@ -138,7 +146,7 @@ GameRegistry.chinchiro = {
 
         if (this.rollingInterval) clearInterval(this.rollingInterval);
         this.rollingInterval = setInterval(() => {
-            dieEls.forEach(el => { if (el) el.textContent = this.diceFace(1 + Math.floor(Math.random() * 6)); });
+            dieEls.forEach(el => { if (el) this.applyFace(el, 1 + Math.floor(Math.random() * 6)); });
         }, 90);
 
         setTimeout(() => {
@@ -158,24 +166,61 @@ GameRegistry.chinchiro = {
         const myResult = gameState.chinchiroResults[myAccountId];
         if (!myResult) { this.isRolling = false; return; }
 
-        const dice = [0, 0, 0].map(() => 1 + Math.floor(Math.random() * 6));
+        // 振った後は昇順に並べて表示する
+        const dice = [0, 0, 0].map(() => 1 + Math.floor(Math.random() * 6)).sort((a, b) => a - b);
         const judged = this.judgeDice(dice);
-        myResult.attempts += 1;
-        myResult.dice = dice;
 
-        if (judged.tier > 0) {
-            myResult.label = judged.label; myResult.tier = judged.tier; myResult.score = judged.score; myResult.done = true;
-            this.advanceTurn();
-        } else if (myResult.attempts >= 3) {
-            myResult.label = '目なし（役なし・最下位確定）'; myResult.tier = 0; myResult.score = 0; myResult.done = true;
-            this.advanceTurn();
+        const commit = () => {
+            myResult.attempts += 1;
+            myResult.dice = dice;
+
+            if (judged.tier > 0) {
+                myResult.label = judged.label; myResult.tier = judged.tier; myResult.score = judged.score; myResult.done = true;
+                this.advanceTurn();
+            } else if (myResult.attempts >= 3) {
+                myResult.label = '目なし（役なし・最下位確定）'; myResult.tier = 0; myResult.score = 0; myResult.done = true;
+                this.advanceTurn();
+            } else {
+                myResult.label = `役なし（あと${3 - myResult.attempts}回振り直せます）`; myResult.tier = -1; myResult.score = -1;
+            }
+
+            this.isRolling = false;
+            broadcast({ type: 'SYNC_GAME', state: gameState });
+            syncGameUI();
+        };
+
+        if (judged.tier === 6) {
+            // ピンゾロが出た時は、すぐに結果を確定せず「出た瞬間」をしっかり見せてから確定する
+            this.showDiceResult(dice);
+            this.showPinzoroFlash();
+            setTimeout(commit, 1400);
         } else {
-            myResult.label = `役なし（あと${3 - myResult.attempts}回振り直せます）`; myResult.tier = -1; myResult.score = -1;
+            commit();
         }
+    },
 
-        this.isRolling = false;
-        broadcast({ type: 'SYNC_GAME', state: gameState });
-        syncGameUI();
+    // ピンゾロ演出中に実際の出目をお皿に表示する
+    showDiceResult: function(dice) {
+        [0, 1, 2].forEach(i => {
+            const el = document.getElementById(`chinchiro-die-${i}`);
+            if (!el) return;
+            el.classList.remove('rolling');
+            this.applyFace(el, dice[i]);
+            el.classList.add('landed', 'win-die');
+        });
+    },
+
+    showPinzoroFlash: function() {
+        const flash = document.getElementById('chinchiro-pinzoro-flash');
+        if (!flash) return;
+        flash.style.display = 'flex';
+        // アニメーションを毎回最初から再生させるため、要素を作り直す
+        const span = flash.querySelector('span');
+        if (span) {
+            const clone = span.cloneNode(true);
+            span.replaceWith(clone);
+        }
+        setTimeout(() => { flash.style.display = 'none'; }, 1350);
     },
 
     advanceTurn: function() {
@@ -210,7 +255,7 @@ GameRegistry.chinchiro = {
 
             let diceHtml = '<span style="color:#666; font-size:0.72rem;">未挑戦</span>';
             if (r.attempts > 0) {
-                diceHtml = `<div class="chinchiro-mini-dice">${r.dice.map(d => `<div class="chinchiro-mini-die">${this.diceFace(d)}</div>`).join('')}</div>`;
+                diceHtml = `<div class="chinchiro-mini-dice">${r.dice.map(d => `<div class="chinchiro-mini-die ${d === 1 ? 'die-one' : ''}">${this.diceFace(d)}</div>`).join('')}</div>`;
             }
 
             const statusLabel = r.attempts > 0 ? r.label : (idx < gameState.turnIndex ? r.label : '順番待ち');
@@ -245,7 +290,7 @@ GameRegistry.chinchiro = {
                     <span style="font-weight:bold;">${p.name}</span>
                 </div>
                 <div style="display:flex; align-items:center; gap:10px;">
-                    <div class="chinchiro-mini-dice">${diceArr.map(d => `<div class="chinchiro-mini-die">${this.diceFace(d)}</div>`).join('')}</div>
+                    <div class="chinchiro-mini-dice">${diceArr.map(d => `<div class="chinchiro-mini-die ${d === 1 ? 'die-one' : ''}">${this.diceFace(d)}</div>`).join('')}</div>
                     <span class="chinchiro-hand-label">${r.label || '-'}</span>
                 </div>
             </div>`;
@@ -298,7 +343,14 @@ GameRegistry.chinchiro = {
             const attemptsForDisplay = activeResult ? activeResult.attempts : 0;
             [0, 1, 2].forEach(i => {
                 const el = document.getElementById(`chinchiro-die-${i}`);
-                if (el) el.textContent = attemptsForDisplay > 0 ? this.diceFace(diceToShow[i]) : '-';
+                if (!el) return;
+                el.classList.remove('win-die');
+                if (attemptsForDisplay > 0) {
+                    this.applyFace(el, diceToShow[i]);
+                } else {
+                    el.textContent = '-';
+                    el.classList.remove('die-one');
+                }
             });
             handLabelEl.textContent = (activeResult && activeResult.attempts > 0) ? activeResult.label : '';
         }
@@ -311,7 +363,9 @@ GameRegistry.chinchiro = {
             rollBtn.textContent = '🎲 サイコロを振る';
         }
 
-        if (!amInRoster) {
+        if (isMyTurn && this.isRolling) {
+            infoBar.textContent = "🎲 サイコロが転がっています…！";
+        } else if (!amInRoster) {
             infoBar.textContent = `⏱️ ${activePlayer ? activePlayer.name : '相手'}のターンです...(観戦中)`;
         } else if (isMyTurn) {
             infoBar.textContent = (myResult && myResult.attempts > 0)
